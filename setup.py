@@ -10,7 +10,7 @@ chdir(abspath(join(abspath(__file__), pardir)))
 
 setup(
     name='curio-http-server',
-    version='0.1',
+    version='0.2',
     description='High performance Curio based HTTP server with Jinja2 templates support.',
     author='Roman Akopov',
     author_email='adontz@gmail.com',
