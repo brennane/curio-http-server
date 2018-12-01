@@ -1,0 +1,56 @@
+<html>
+    <head>
+        <title>Test Forms</title>
+    </head>
+    <body>
+        <h1>GET</h1>
+        <form method="GET">
+            <table>
+                <tr><td>text</td> <td><input type="text" name="get-1-text"/></td></tr>
+                <tr><td>submit</td> <td><input type="submit" name="get-1-submit" value="submit"/></td></tr>
+            </table>
+        </form>
+
+        <h1>POST, application/x-www-form-urlencoded</h1>
+        <form method="POST" enctype="application/x-www-form-urlencoded">
+            <table>
+                <tr><td>text</td> <td><input type="text" name="post-1-char"/></td></tr>
+                <tr><td>password</td> <td><input type="password" name="post-1-password"/></td></tr>
+                <tr><td>radio A</td> <td><input type="radio" name="post-1-radio" value="A"/></td></tr>
+                <tr><td>radio B</td> <td><input type="radio" name="post-1-radio" value="B"/></td></tr>
+                <tr><td>radio C</td> <td><input type="radio" name="post-1-radio" value="C"/></td></tr>
+                <tr><td>checkbox</td> <td><input type="checkbox" name="post-1-checkbox"/></td></tr>
+                <tr><td>color</td> <td><input type="color" name="post-1-color"/></td></tr>
+                <tr><td>date</td> <td><input type="date" name="post-1-date"/></td></tr>
+                <tr><td>file</td> <td><input type="file" name="post-1-file"/></td></tr>
+                <tr><td>number</td> <td><input type="number" name="post-1-number" min="3" max="17" step="0.1" value="14"/></td></tr>
+                <tr><td>range</td> <td><input type="range" name="post-1-range" min="3" max="17"/></td></tr>
+                <tr><td>time</td> <td><input type="time" name="post-1-time"/></td></tr>
+                <tr><td>url</td> <td><input type="url" name="post-1-url"/></td></tr>
+                <tr><td>submit</td> <td><input type="submit" name="post-1-submit" value="submit"/></td></tr>
+                <tr><td>reset</td> <td><input type="reset" name="post-1-reset" value="reset"/></td></tr>
+            </table>
+        </form>
+
+        <h1>POST, multipart/form-data</h1>
+        <form method="POST" enctype="multipart/form-data">
+            <table>
+                <tr><td>text</td> <td><input type="text" name="post-2-text"/></td></tr>
+                <tr><td>password</td> <td><input type="password" name="post-2-password"/></td></tr>
+                <tr><td>radio A</td> <td><input type="radio" name="post-2-radio" value="A"/></td></tr>
+                <tr><td>radio B</td> <td><input type="radio" name="post-2-radio" value="B"/></td></tr>
+                <tr><td>radio C</td> <td><input type="radio" name="post-2-radio" value="C"/></td></tr>
+                <tr><td>checkbox</td> <td><input type="checkbox" name="post-2-checkbox"/></td></tr>
+                <tr><td>color</td> <td><input type="color" name="post-2-color"/></td></tr>
+                <tr><td>date</td> <td><input type="date" name="post-2-date"/></td></tr>
+                <tr><td>file</td> <td><input type="file" name="post-2-file"/></td></tr>
+                <tr><td>number</td> <td><input type="number" name="post-2-number" min="3" max="17" step="0.1" value="14"/></td></tr>
+                <tr><td>range</td> <td><input type="range" name="post-2-range" min="3" max="17"/></td></tr>
+                <tr><td>time</td> <td><input type="time" name="post-2-time"/></td></tr>
+                <tr><td>url</td> <td><input type="url" name="post-2-url"/></td></tr>
+                <tr><td>submit</td> <td><input type="submit" name="post-2-submit" value="submit"/></td></tr>
+                <tr><td>reset</td> <td><input type="reset" name="post-2-reset" value="reset"/></td></tr>
+            </table>
+        </form>
+    </body>
+</html>

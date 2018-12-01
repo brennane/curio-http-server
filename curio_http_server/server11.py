@@ -18,25 +18,17 @@ class Connection11(object):
         self.match_handler = None
         self.match_parameters = None
 
-    async def read_request(self):
+    async def read_request(self, max_length=64 * 1024):
+        if max_length <= 0:
+            return b''
+
         try:
-            return await timeout_after(1, self.socket.recv, 64 * 1024)
+            return await timeout_after(1, self.socket.recv, max_length)
         except TaskTimeout:
             return b''
 
     async def write_response(self, data):
         await self.socket.sendall(data)
-
-    async def step_header(self):
-        try:
-            data = await timeout_after(1, self.socket.recv, 64 * 1024)
-        except TaskTimeout:
-            return False
-
-        if not data:
-            return False
-
-        self.parser.feed_data(data)
 
 
 class Server11(object):

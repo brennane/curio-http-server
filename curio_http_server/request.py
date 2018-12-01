@@ -1,5 +1,9 @@
 from .headers import RequestHeaders
+from .headers import FormPartHeaders
 from curio import Event
+from email.message import Message
+from email.parser import BytesFeedParser
+from email.policy import HTTP
 from httptools import HttpRequestParser
 from httptools import parse_url
 from json import loads
@@ -11,31 +15,20 @@ class RequestBodyStream(object):
     def __init__(self, request):
         self.request = request
 
-    async def read(self):
-        return await self.request._protocol.read_request()
+    async def read(self, max_length=64*1024):
+
+        return await self.request._read_body(max_length)
 
     async def readall(self):
         body = b''
-        content_length = self.request.headers.get('Content-Length')
 
-        if content_length is not None:
-            content_length = int(content_length) + 1
+        while True:
+            data = await self.request._read_body(64 * 1024)
 
-            while len(body) < content_length:
-                data = await self.request._read_body()
+            if not data:
+                break
 
-                if not data:
-                    break
-
-                body +=  data
-        else:
-            while True:
-                data = await self.request._read_body()
-
-                if not data:
-                    break
-
-                body +=  data
+            body += data
 
         return body
 
@@ -50,6 +43,25 @@ class RequestBodyStreamContext(object):
 
     async def __aexit__(self, exc_type, exc, tb):
         pass
+
+
+def message_factory():
+    message = Message(policy=HTTP)
+    message.set_default_type('application/form-data')
+
+    return message
+
+class RequestFilePart(object):
+    def __init__(self, filename, headers, content):
+        self.filename = filename
+        self.headers = FormPartHeaders()
+        self.content = content
+
+        for name, value in headers:
+            self.headers.add(name, value)
+
+    def __str__(self):
+        return self.filename
 
 
 class Request(object):
@@ -81,14 +93,17 @@ class Request(object):
                 self.raw_query.add(name.decode('ascii'), value)
                 self.query.add(name.decode('ascii'), value.decode('ascii'))
 
-        self._postprocess_headers()
+        self.headers._post_process(self)
         self._headers_complete = True
+
+        if self.headers.content_length:
+            self._body_length = self.headers.content_length
 
     def on_body(self, body: bytes):
         self._body_buffer += body
 
     def on_message_complete(self):
-        self._body_complete = True
+        self._is_body_complete = True
 
     def on_chunk_header(self):
         pass
@@ -98,7 +113,7 @@ class Request(object):
 
     async def _try_read_headers(self):
         while not self._headers_complete:
-            data = await self._connection.read_request()
+            data = await self._connection.read_request(64 * 1024)
 
             if not data:
                 return False
@@ -107,15 +122,19 @@ class Request(object):
 
         return True
 
-    async def _read_body(self):
-        while not self._body_complete:
-            data = await self._connection.read_request()
+    async def _read_body(self, max_length=64*1024):
+        while (not self._is_body_complete) or (len(self._body_buffer) > 0):
+            chunk_length = min(max_length, self._body_length - (self._body_position + len(self._body_buffer))) 
+            data = await self._connection.read_request(chunk_length)
 
             if not data:
-                self._body_complete = True
-                return b''
+                self._is_body_complete = True
+            else:
+                self._body_position += len(data)
+                self._parser.feed_data(data)
 
-            self._parser.feed_data(data)
+            if self._body_position == self._body_length:
+                self._is_body_complete = True
 
             if len(self._body_buffer) > 0:
                 result = self._body_buffer
@@ -125,15 +144,12 @@ class Request(object):
 
         return b''
 
-    def _postprocess_headers(self):
-        self.headers._post_process(self)
-
     def __init__(self, connection):
         self._connection = connection
         self._parser = HttpRequestParser(self)
         self._body_buffer = b''
         self._headers_complete = False
-        self._body_complete = False
+        self._is_body_complete = False
 
         self.version = None
         self.keep_alive = None
@@ -156,6 +172,8 @@ class Request(object):
         self.content_type_params = {}
         self.content_charset = 'ascii'
 
+        self._body_length = 2**32
+        self._body_position = 0
         self._is_body_complete = False
         self._body = None
         self._text = None
@@ -187,9 +205,41 @@ class Request(object):
         if self._form is None:
             self._form = CIMultiDict()
 
-            for name, values in parse_qs(self.read_body()).items():
-                for value in values:
-                    self._form.add(name.decode('utf-8'), value.decode('utf-8'))
+            if (self.headers.content_type.type == 'application') and (self.headers.content_type.subtype == 'x-www-form-urlencoded'):
+                for name, values in parse_qs(self.read_body()).items():
+                    for value in values:
+                        self._form.add(name, value)
+            elif (self.headers.content_type.type == 'multipart') and (self.headers.content_type.subtype == 'form-data'):
+                # TODO: replace with multifruits
+                parser = BytesFeedParser(policy=HTTP, _factory=message_factory)
+                parser.feed(b'Content-Type: %s\r\n\r\n' % self.raw_headers['Content-Type'])
+
+                async with self.open_body() as stream:
+                    while True:
+                        data = await stream.read()
+
+                        if not data:
+                            break
+
+                        parser.feed(data)
+
+                message = parser.close()
+
+                for part in message.walk():
+                    if part.get_content_type() != 'multipart/form-data':
+                        params = dict(part.get_params(header='content-disposition'))
+                        name = params.get('name')
+
+                        if name:
+                            payload =  part.get_payload(decode=True)
+
+                            if payload:
+                                if part.get_content_type() == 'application/form-data':
+                                    self._form.add(name, payload.decode('utf-8'))
+                                else:
+                                    self._form.add(
+                                        name,
+                                        RequestFilePart(params.get('filename'), part.items(), part.get_payload(decode=True)))
 
         return self._form
 
