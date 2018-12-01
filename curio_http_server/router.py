@@ -20,7 +20,7 @@ class Route(object):
         elif pattern == 'path':
             pattern = '.+'
         elif pattern == 'int':
-            pattern = '\d+'
+            pattern = '\\d+'
             converter = int
         elif pattern == 'uuid':
             pattern = '(?:[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})|(?:[0-9a-fA-F]{32})'
@@ -37,7 +37,7 @@ class Route(object):
             pattern = 'str'
         elif pattern == '.+':
             pattern = 'path'
-        elif pattern == '\d+':
+        elif pattern == '\\d+':
             pattern = 'int'
 
         return f'<{pattern}>'
@@ -128,7 +128,10 @@ class Router(object):
                     if name in method_names:
                         method_handlers[name] = handler
 
-                self._add_functions(path_pattern + route.path_pattern, method_handlers)
+                if path_pattern.endswith('/'):
+                    self._add_functions(path_pattern + route.path_pattern.lstrip('/'), method_handlers)
+                else:
+                    self._add_functions(path_pattern + route.path_pattern, method_handlers)
         else:
             if isfunction(handler):
                 self._add_functions(path_pattern, {method_name: handler for method_name in method_names})
