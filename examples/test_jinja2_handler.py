@@ -17,7 +17,7 @@ class DefaultHandler(Jinja2HandlerBase):
             # Always enable async.
             enable_async=True))
 
-    @jinja2_template('jinja2_handler.html')
+    @jinja2_template('test_jinja2_handler.html')
     async def get(self, request, response):
         # Note that handler returns data
         return { 'size': 123456789, 'time': datetime.now()}
