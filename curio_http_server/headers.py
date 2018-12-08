@@ -1,11 +1,12 @@
 from base64 import standard_b64decode
 from email.utils import parsedate_to_datetime
+from email.utils import format_datetime
 from multidict import CIMultiDict
 from ua_parser import user_agent_parser
 
 
 class AuthorizationHeader(object):
-    __slots__ = 'type', 'credentials', 'username', 'password', 'token'
+    __slots__ = 'type', 'credentials', 'username', 'password', 'token', 'value'
 
     @classmethod
     def _from_value(cls, value):
@@ -43,6 +44,7 @@ class ContentDispositionHeader(object):
     def __str__(self):
         return self.value
 
+
 class ContentTypeHeader(object):
     __slots__ = 'type', 'subtype', 'suffix', 'params', 'value'
 
@@ -68,12 +70,22 @@ class ContentTypeHeader(object):
 
         return None
 
-    def __init__(self, type, subtype, suffix, params, value):
-        self.type = type
-        self.subtype = subtype
+    def __init__(self, type, subtype=None, suffix=None, params=None, value=None):
+        if ('/' in type) and (subtype is None):
+            self.type, self.subtype = type.split('/', 1)
+        else:
+            self.type = type
+            self.subtype = subtype
+
         self.suffix = suffix
         self.params = params
-        self.value = value
+        self.value = f'{self.type}/{self.subtype}'
+
+        if self.suffix:
+            self.value += '+' + self.suffix
+
+        if self.params:
+            self.value += ''.join([f';{name}={value}' for name, value in self.params.items()])
 
     def __str__(self):
         return self.value
@@ -195,7 +207,47 @@ class BaseHeaders(CIMultiDict):
         self.content_type = None
         self.date = None
 
-    def _post_process(self):
+
+class FormPartHeaders(BaseHeaders):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    def _post_process(self,):
+        # Content-Disposition
+        content_disposition_value = self.get('Content-Disposition')
+
+        if content_disposition_value:
+            parts = content_disposition_value.split(';')
+            params = {}
+
+            for part in parts[1:]:
+                name, value = part.split('=')
+                params[name.strip().lower()] = value.strip()
+
+            self.content_disposition = ContentDispositionHeader(parts[0].strip().lower(), params, content_disposition_value)
+
+        # Content-Type
+        self.content_type = ContentTypeHeader._from_value(self.get('Content-Type'))
+
+
+class RequestHeaders(BaseHeaders):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.authorization = None
+        self.user_agent = None
+
+    def _post_process(self, request):
+        # TODO: A-IM
+        # TODO: Accept
+        # TODO: Accept-Charset
+        # TODO: Accept-Datetime
+        # TODO: Accept-Encoding
+        # TODO: Accept-Language
+        # TODO: Access-Control-Request-Headers
+        # TODO: Access-Control-Request-Method
+        # Authorization
+        self.authorization = AuthorizationHeader._from_value(self.get('Authorization'))
+
         # TODO: Cache-Control
         # TODO: Connection
         # Content-Length
@@ -218,53 +270,6 @@ class BaseHeaders(CIMultiDict):
 
         # Content-Type
         self.content_type = ContentTypeHeader._from_value(self.get('Content-Type'))
-        # Date
-        date_value = self.get('Date')
-
-        if date_value:
-            self.date = parsedate_to_datetime(date_value)
-
-        # TODO: Pragma
-
-
-class FormPartHeaders(BaseHeaders):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-    def _post_process(self,):
-        super()._post_process()
-        # Content-Disposition
-        content_disposition_value = self.get('Content-Disposition')
-
-        if content_disposition_value:
-            parts = content_disposition_value.split(';')
-            params = {}
-
-            for part in parts[1:]:
-                name, value = part.split('=')
-                params[name.strip().lower()] = value.strip()
-
-            self.content_disposition = ContentDispositionHeader(parts[0].strip().lower(), params, content_disposition_value)
-
-
-class RequestHeaders(BaseHeaders):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.authorization = None
-        self.user_agent = None
-
-    def _post_process(self, request):
-        super()._post_process()
-        # TODO: A-IM
-        # TODO: Accept
-        # TODO: Accept-Charset
-        # TODO: Accept-Datetime
-        # TODO: Accept-Encoding
-        # TODO: Accept-Language
-        # TODO: Access-Control-Request-Headers
-        # TODO: Access-Control-Request-Method
-        # Authorization
-        self.authorization = AuthorizationHeader._from_value(self.get('Authorization'))
 
         # Cookie
         cookie_value = self.get('Cookie')
@@ -276,6 +281,12 @@ class RequestHeaders(BaseHeaders):
                 if '=' in part:
                     name, value = part.split('=', 1)
                     request.cookies[name.strip()] = value.strip()
+
+        # Date
+        date_value = self.get('Date')
+
+        if date_value:
+            self.date = parsedate_to_datetime(date_value)
 
         # TODO: Expect
         # TODO: Forwarded
@@ -305,6 +316,7 @@ class RequestHeaders(BaseHeaders):
         # TODO: If-Unmodified-Since
         # TODO: Max-Forwards
         # TODO: Origin
+        # TODO: Pragma
         # TODO: Proxy-Authorization
         # TODO: Range
         # TODO: Referer
@@ -319,9 +331,11 @@ class RequestHeaders(BaseHeaders):
 class ResponseHeaders(BaseHeaders):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.content_length = None
+        self.content_type = None
+        self.last_modified = None
 
     def _post_process(self, response):
-        super()._post_process()
         # TODO: Accept-Patch
         # TODO: Accept-Ranges
         # TODO: Access-Control-Allow-Credentials
@@ -333,22 +347,35 @@ class ResponseHeaders(BaseHeaders):
         # TODO: Age
         # TODO: Allow
         # TODO: Alt-Svc
+        # TODO: Cache-Control
+        # TODO: Connection
         # TODO: Content-Disposition
         # TODO: Content-Encoding
         # TODO: Content-Language
-        # TODO: Content-Length
+        # Content-Length
+        if self.content_length:
+            self['Content-Length'] = str(self.content_length)
+
         # TODO: Content-Location
         # TODO: Content-MD5
         # TODO: Content-Range
         # TODO: Content-Type
+        if self.content_type:
+            self['Content-Type'] = str(self.content_type)
+
+        # TODO: Date
         # TODO: Delta-Base
         # TODO: ETag
         # TODO: Expires
         # TODO: IM
-        # TODO: Last-Modified
+        # Last-Modified
+        if self.last_modified:
+            self['Last-Modified'] = format_datetime(self.last_modified)
+
         # TODO: Link
         # TODO: Location
         # TODO: P3P
+        # TODO: Pragma
         # TODO: Proxy-Authenticate
         # TODO: Public-Key-Pins
         # TODO: Retry-After

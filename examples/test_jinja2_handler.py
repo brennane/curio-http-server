@@ -1,11 +1,11 @@
 from curio import run
-from curio_http_server.handlers import Jinja2HandlerBase
-from curio_http_server.handlers import jinja2_template
+from curio_http_server.handlers.template import Jinja2HandlerBase
+from curio_http_server.handlers.template import jinja2_template
 from curio_http_server.router import Router
 from curio_http_server.server11 import Server11
+from datetime import datetime
 from jinja2 import Environment
 from jinja2 import FileSystemLoader
-from datetime import datetime
 from os.path import dirname
 
 

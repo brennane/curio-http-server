@@ -1,0 +1,2 @@
+https://github.com/longbill/jquery-date-range-picker
+v0.20.0

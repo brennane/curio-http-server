@@ -1,6 +1,6 @@
-from curio import Event
+from .headers import ResponseHeaders
 from json import dumps
-from multidict import CIMultiDict
+
 
 STATUS_DATA = {
     100: b'Continue',
@@ -102,8 +102,10 @@ class Response(object):
         if not self._are_headers_sent:
             self._are_headers_sent = True
 
+            self.headers._post_process(self)
+
             lines = [
-                b'HTTP/%s %03d %s\r\n' % (self._version.encode('ascii'), self.status_code, self.status_data)
+                b'HTTP/%s %03d %s\r\n' % (self._version.encode('ascii'), self.status_code, self.status_text.encode('ascii'))
             ]
 
             for name, value in self.headers.items():
@@ -123,19 +125,38 @@ class Response(object):
             self._is_body_sent = True
             await self._connection.write_response(data)
 
+    def _get_status_code(self):
+        return self._status_code
+
+    def _set_status_code(self, value):
+        if self._status_code != value:
+            self._status_code = value
+            self._status_text = None
+
+    def _get_status_text(self):
+        if not self._status_text:
+            self._status_text = self._status_text if self._status_text else STATUS_TEXT.get(self._status_code, 'Undefined')
+
+        return self._status_text
+
+    def _set_status_text(self, value):
+        self._status_text = value
+
     def __init__(self, connection, version, status_code=200, status_text=None, headers=None):
         self._connection = connection
         self._version = version
         self._are_headers_sent = False
         self._is_body_sent = False
-        self.status_code = status_code
-        self.status_text = status_text if status_text else STATUS_TEXT.get(self.status_code, 'Undefined')
-        self.status_data = status_text.encode('ascii') if status_text else STATUS_DATA.get(self.status_code, 'Undefined')
-        self.headers = CIMultiDict()
+        self._status_code = status_code
+        self._status_text = status_text
+        self.headers = ResponseHeaders()
 
         if headers:
             for name, value in headers:
                 self.headers[name] = value
+
+    status_code = property(_get_status_code, _set_status_code)
+    status_text = property(_get_status_text, _set_status_text)
 
     async def send_body(self, data):
         self.headers['Content-Length'] = str(len(data))
@@ -145,19 +166,19 @@ class Response(object):
 
     async def send_text(self, text):
         if not 'Content-Type' in self.headers:
-            self.headers['Content-Type'] = b'text/plain; charset=utf-8'
+            self.headers['Content-Type'] = 'text/plain; charset=utf-8'
 
         await self.send_body(text.encode('utf-8'))
 
     async def send_html(self, text):
         if not 'Content-Type' in self.headers:
-            self.headers['Content-Type'] = b'text/html; charset=utf-8'
+            self.headers['Content-Type'] = 'text/html; charset=utf-8'
 
         await self.send_body(text.encode('utf-8'))
 
     async def send_json(self, json, *args, **kwargs):
         if not 'Content-Type' in self.headers:
-            self.headers['Content-Type'] = b'application/json; charset=utf-8'
+            self.headers['Content-Type'] = 'application/json; charset=utf-8'
 
         await self.send_text(dumps(json, *args, **kwargs))
 

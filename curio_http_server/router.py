@@ -18,7 +18,7 @@ class Route(object):
         elif pattern == 'slug':
             pattern = '[A-Za-z0-9-_]+'
         elif pattern == 'path':
-            pattern = '.+'
+            pattern = '.*'
         elif pattern == 'int':
             pattern = '\\d+'
             converter = int

@@ -1,6 +1,5 @@
 from .headers import RequestHeaders
 from .headers import FormPartHeaders
-from curio import Event
 from email.message import Message
 from email.parser import BytesFeedParser
 from email.policy import HTTP
@@ -9,6 +8,7 @@ from httptools import parse_url
 from json import loads
 from multidict import CIMultiDict
 from urllib.parse import parse_qs
+from urllib.parse import unquote_to_bytes
 
 
 class RequestBodyStream(object):
@@ -51,6 +51,7 @@ def message_factory():
 
     return message
 
+
 class RequestFilePart(object):
     def __init__(self, filename, headers, content):
         self.filename = filename
@@ -88,7 +89,7 @@ class Request(object):
         self.method = self.raw_method.decode('ascii')
         self.path = parsed_path.path.decode('ascii')
 
-        for name, values in parse_qs(parsed_path.query).items():
+        for name, values in parse_qs(parsed_path.query,).items():
             for value in values:
                 self.raw_query.add(name.decode('ascii'), value)
                 self.query.add(name.decode('ascii'), value.decode('ascii'))
@@ -206,9 +207,13 @@ class Request(object):
             self._form = CIMultiDict()
 
             if (self.headers.content_type.type == 'application') and (self.headers.content_type.subtype == 'x-www-form-urlencoded'):
-                for name, values in parse_qs(self.read_body()).items():
-                    for value in values:
-                        self._form.add(name, value)
+                body = await self.read_body()
+
+                for parameter in body.split(b'&'):
+                    name, value = parameter.split(b'=')
+                    self._form.add(
+                        unquote_to_bytes(name).decode('utf-8'),
+                        unquote_to_bytes(value).decode('utf-8'))
             elif (self.headers.content_type.type == 'multipart') and (self.headers.content_type.subtype == 'form-data'):
                 # TODO: replace with multifruits
                 parser = BytesFeedParser(policy=HTTP, _factory=message_factory)

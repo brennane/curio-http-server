@@ -69,6 +69,9 @@ class Server11(object):
                     if not has_response:
                         await match_handler(request, response, **match_parameters)
 
+                    if (500 > response.status_code >= 400) and not (response._are_headers_sent):
+                        await self.on_4xx_error(request, response)
+
                     for middleware in self.middlewares:
                         await middleware.after(request, response)
                 except:
