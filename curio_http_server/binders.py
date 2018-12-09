@@ -76,18 +76,6 @@ class CheckboxInput(InputBase):
                 errors.append(f'Invalid value.')
 
 
-class ColorInput(NullableInputBase):
-    def __init__(self, **kwargs):
-        super().__init__('color', '', **kwargs)
-
-    def _validate_item_update(self, errors, raw_data):
-        super()._validate_item_update(errors, raw_data)
-
-        if not raw_data is None:
-            # TODO: convert to RGB
-            return str(raw_data)
-
-
 class DateInput(NullableInputBase):
     def __init__(
         self,
@@ -381,11 +369,11 @@ class InputProxy(object):
     def is_invalid(self):
         return self._form._is_validated and len(self.errors()) > 0
 
-    def value(self):
+    def item_update_value(self):
         return self._form._data.get(self._input.name, self._input.default)
 
-    def value_format(self, format=None):
-        value = self.value()
+    def item_update_value_format(self, format=None):
+        value = self.item_update_value()
 
         if value is None:
             return ''

@@ -1,6 +1,5 @@
 from curio import run
 from curio_http_server.binders import CheckboxInput
-from curio_http_server.binders import ColorInput
 from curio_http_server.binders import DateInput
 from curio_http_server.binders import DateTimeInput
 from curio_http_server.binders import EMailInput
@@ -35,11 +34,9 @@ from os.path import join
 class TestBinder(BinderBase):
     checkbox = CheckboxInput(
         verbose_name='Test Checkbox',
+        choices={None: 'Whatever', True: 'Enabled', False: 'Disabled'},
         help_text="Some help text here to give user an advice.",
         can_filter=True)
-    color = ColorInput(
-        verbose_name='Test Color Picker',
-        help_text="Some help text here to give user an advice.")
     date = DateInput(
         min_value=(date.today() - timedelta(days=15)),
         max_value=(date.today() + timedelta(days=15)),
@@ -47,8 +44,8 @@ class TestBinder(BinderBase):
         help_text="Some help text here to give user an advice.",
         can_filter=True)
     datetime = DateTimeInput(
-        min_value=(datetime.now() - timedelta(days=15)),
-        max_value=(datetime.now() + timedelta(days=15)),
+        min_value=(datetime.now().replace(microsecond=0) - timedelta(days=15)),
+        max_value=(datetime.now().replace(microsecond=0) + timedelta(days=15)),
         verbose_name='Test Date and Time Picker',
         help_text="Some help text here to give user an advice.",
         can_filter=True)
