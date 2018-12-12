@@ -1,22 +1,22 @@
 {# CHECKBOX #}
 
 {% if not item_select_checkbox %}
-{% macro item_select_checkbox(obj, prefix) -%}
+{% macro  item_select_checkbox(obj, prefix) -%}
 <div class="field transparent">
     <label for="{{ prefix }}{{ obj.name }}">{{ obj.verbose_name }}</label>
     <input
         type="checkbox"
         id="{{ prefix }}{{ obj.name }}"
         name="{{ prefix }}{{ obj.name }}"
-        disabled="disabled"{% if obj.item_update_value() %}
+        disabled="disabled"{% if obj.item_select_value() %}
         checked="checked"{% endif %}>
 </div>
 {%- endmacro %}
 {% endif %}
 
 {% if not item_update_checkbox %}
-{% macro item_update_checkbox(obj, prefix) -%}
-<div class="field{% if obj.is_invalid() %} error{% endif %}{% if obj.is_readonly %} disabled{% endif %}">
+{% macro  item_update_checkbox(obj, prefix) -%}
+<div class="field{% if obj.is_invalid('value') %} error{% endif %}{% if obj.is_readonly %} disabled{% endif %}">
     <label for="{{ prefix }}{{ obj.name }}">{{ obj.verbose_name }}</label>
     <input
         type="checkbox"
@@ -24,7 +24,51 @@
         name="{{ prefix }}{{ obj.name }}"{% if obj.is_readonly %}
         readonly="readonly"{% endif %}{% if obj.item_update_value() %}
         checked="checked"{% endif %}>
-    {% if obj.is_invalid() %}<div class="ui pointing red basic label">{% for error in obj.errors() %}{{ error }}{% endfor %}</div>{% endif %}
+    {% if obj.is_invalid('value') %}<div class="ui pointing red basic label">{% for error in obj.errors('value') %}{{ error }}{% endfor %}</div>{% endif %}
+</div>
+{%- endmacro %}
+{% endif %}
+
+{% if not list_filter_checkbox %}
+{% macro  list_filter_checkbox(obj, prefix) -%}
+<div class="grouped fields">
+    <label for="{{ prefix }}{{ obj.name }}" class="col-sm-2 col-form-label col-form-label-sm">{{ obj.verbose_name }}</label>
+    <div class="field{% if obj.is_invalid('none') %} error{% endif %}{% if obj.is_readonly %} disabled{% endif %}">
+        <div class="ui radio checkbox">
+            <input
+                type="radio"
+                id="{{ prefix }}{{ obj.name }}:none"
+                name="{{ prefix }}{{ obj.name }}"
+                value="none"{% if obj.list_filter_value() is none %}
+                checked="checked"{% endif %}>
+            <label for="{{ prefix }}{{ obj.name }}:none">{{ obj.choices[None] }}</label>
+            {% if obj.is_invalid('none') %}<div class="ui pointing red basic label">{% for error in obj.errors('none') %}{{ error }}{% endfor %}</div>{% endif %}
+        </div>
+    </div>
+    <div class="field{% if obj.is_invalid('false') %} error{% endif %}{% if obj.is_readonly %} disabled{% endif %}">
+        <div class="ui radio checkbox">
+            <input
+                type="radio"
+                id="{{ prefix }}{{ obj.name }}:false"
+                name="{{ prefix }}{{ obj.name }}"
+                value="false"{% if obj.list_filter_value() is sameas False %}
+                checked="checked"{% endif %}>
+            <label for="{{ prefix }}{{ obj.name }}:false">{{ obj.choices[False] }}</label>
+            {% if obj.is_invalid('false') %}<div class="ui pointing red basic label">{% for error in obj.errors('false') %}{{ error }}{% endfor %}</div>{% endif %}
+        </div>
+    </div>
+    <div class="field{% if obj.is_invalid('true') %} error{% endif %}{% if obj.is_readonly %} disabled{% endif %}">
+        <div class="ui radio checkbox">
+            <input
+                type="radio"
+                id="{{ prefix }}{{ obj.name }}:true"
+                name="{{ prefix }}{{ obj.name }}"
+                value="true"{% if obj.list_filter_value() is sameas True %}
+                checked="checked"{% endif %}>
+            <label for="{{ prefix }}{{ obj.name }}:true">{{ obj.choices[True] }}</label>
+            {% if obj.is_invalid('true') %}<div class="ui pointing red basic label">{% for error in obj.errors('true') %}{{ error }}{% endfor %}</div>{% endif %}
+        </div>
+    </div>
 </div>
 {%- endmacro %}
 {% endif %}
@@ -32,33 +76,70 @@
 {# DATE #}
 
 {% if not item_select_date %}
-{% macro item_select_date(obj, prefix) -%}
-<div class="field transparent">
+{% macro  item_select_date(obj, prefix) -%}
+<div class="field transparent" data-input-type="select-date">
     <label for="{{ prefix }}{{ obj.name }}">{{ obj.verbose_name }}</label>
     <input
         type="text"
         id="{{ prefix }}{{ obj.name }}"
         name="{{ prefix }}{{ obj.name }}"
-        value="{{ obj.item_update_value_format() }}"
+        value="{{ obj.item_select_value_format() }}"
         disabled="disabled">
 </div>
 {%- endmacro %}
 {% endif %}
 
 {% if not item_update_date %}
-{% macro item_update_date(obj, prefix) -%}
-<div class="field{% if obj.is_invalid() %} error{% endif %}{% if obj.is_readonly %} disabled{% endif %}">
+{% macro  item_update_date(obj, prefix) -%}
+<div
+    class="field{% if obj.is_invalid('value') %} error{% endif %}{% if obj.is_readonly %} disabled{% endif %}"
+    data-input-type="update-date"
+    data-input-min-value="{{ obj.min_value.strftime('%Y-%m-%d') }}"
+    data-input-max-value="{{ obj.max_value.strftime('%Y-%m-%d') }}">
     <label for="{{ prefix }}{{ obj.name }}">{{ obj.verbose_name }}</label>
     <input
         type="text"
         id="{{ prefix }}{{ obj.name }}"
         name="{{ prefix }}{{ obj.name }}"
         value="{{ obj.item_update_value_format() }}"{% if obj.is_readonly %}
-        readonly="readonly"{% endif %}
-        data-subtype="date"
-        data-min="{{ obj.min_value.strftime('%Y-%m-%d') }}"
-        data-max="{{ obj.max_value.strftime('%Y-%m-%d') }}">
-    {% if obj.is_invalid() %}<div class="ui pointing red basic label">{% for error in obj.errors() %}{{ error }}{% endfor %}</div>{% endif %}
+        readonly="readonly"{% endif %}>
+    {% if obj.is_invalid('value') %}<div class="ui pointing red basic label">{% for error in obj.errors('value') %}{{ error }}{% endfor %}</div>{% endif %}
+</div>
+{%- endmacro %}
+{% endif %}
+
+{% if not list_filter_date %}
+{% macro  list_filter_date(obj, prefix) -%}
+<div
+    class="grouped fields{% if obj.is_readonly %} disabled{% endif %}"
+    data-input-type="filter-dateonly"
+    data-input-min-value="{{ obj.min_value.strftime('%Y-%m-%d') }}"
+    data-input-max-value="{{ obj.max_value.strftime('%Y-%m-%d') }}">
+    <label for="{{ prefix }}{{ obj.name }}" class="col-sm-2 col-form-label col-form-label-sm">{{ obj.verbose_name }}</label>
+    <div class="field{% if obj.is_invalid('lower') %} error{% endif %}">
+        <div class="ui labeled input">
+            <label class="ui label" for="{{ prefix }}{{ obj.name }}:lower">&ge;</label>
+            <input
+                type="text"
+                id="{{ prefix }}{{ obj.name }}:lower"
+                name="{{ prefix }}{{ obj.name }}:lower"
+                value="{{ obj.list_filter_value_format()[0] }}"{% if obj.is_readonly %}
+                readonly="readonly"{% endif %}>
+        </div>
+        {% if obj.is_invalid('lower') %}<div class="ui pointing red basic label">{% for error in obj.errors('lower') %}{{ error }}{% endfor %}</div>{% endif %}
+    </div>
+    <div class="field{% if obj.is_invalid('upper') %} error{% endif %}">
+        <div class="ui labeled input">
+            <label class="ui label" for="{{ prefix }}{{ obj.name }}:upper">&le;</label>
+            <input
+                type="text"
+                id="{{ prefix }}{{ obj.name }}:upper"
+                name="{{ prefix }}{{ obj.name }}:upper"
+                value="{{ obj.list_filter_value_format()[1] }}"{% if obj.is_readonly %}
+                readonly="readonly"{% endif %}>
+        </div>
+        {% if obj.is_invalid('upper') %}<div class="ui pointing red basic label">{% for error in obj.errors('upper') %}{{ error }}{% endfor %}</div>{% endif %}
+    </div>
 </div>
 {%- endmacro %}
 {% endif %}
@@ -66,33 +147,72 @@
 {# DATETIME #}
 
 {% if not item_select_datetime %}
-{% macro item_select_datetime(obj, prefix) -%}
-<div class="field transparent">
+{% macro  item_select_datetime(obj, prefix) -%}
+<div class="field transparent" data-input-type="select-datetime">
     <label for="{{ prefix }}{{ obj.name }}">{{ obj.verbose_name }}</label>
     <input
         type="text"
         id="{{ prefix }}{{ obj.name }}"
         name="{{ prefix }}{{ obj.name }}"
-        value="{{ obj.item_update_value_format() }}"
+        value="{{ obj.item_select_value_format() }}"
+        step="1"
         disabled="disabled">
 </div>
 {%- endmacro %}
 {% endif %}
 
 {% if not item_update_datetime %}
-{% macro item_update_datetime(obj, prefix) -%}
-<div class="field{% if obj.is_invalid() %} error{% endif %}{% if obj.is_readonly %} disabled{% endif %}">
+{% macro  item_update_datetime(obj, prefix) -%}
+<div
+    class="field{% if obj.is_invalid('value') %} error{% endif %}{% if obj.is_readonly %} disabled{% endif %}"
+    data-input-type="update-datetime"
+    data-input-min-value="{{ obj.min_value.strftime('%Y-%m-%dT%H:%M:%S') }}"
+    data-input-max-value="{{ obj.max_value.strftime('%Y-%m-%dT%H:%M:%S') }}">
     <label for="{{ prefix }}{{ obj.name }}">{{ obj.verbose_name }}</label>
     <input
         type="text"
         id="{{ prefix }}{{ obj.name }}"
         name="{{ prefix }}{{ obj.name }}"
-        value="{{ obj.item_update_value_format() }}"{% if obj.is_readonly %}
-        readonly="readonly"{% endif %}
-        data-subtype="datetime"
-        data-min="{{ obj.min_value.strftime('%Y-%m-%dT%H:%M:%S') }}"
-        data-max="{{ obj.max_value.strftime('%Y-%m-%dT%H:%M:%S') }}">
-    {% if obj.is_invalid() %}<div class="ui pointing red basic label">{% for error in obj.errors() %}{{ error }}{% endfor %}</div>{% endif %}
+        value="{{ obj.item_update_value_format() }}"
+        step="1"{% if obj.is_readonly %}
+        readonly="readonly"{% endif %}>
+    {% if obj.is_invalid('value') %}<div class="ui pointing red basic label">{% for error in obj.errors('value') %}{{ error }}{% endfor %}</div>{% endif %}
+</div>
+{%- endmacro %}
+{% endif %}
+
+{% if not list_filter_datetime %}
+{% macro  list_filter_datetime(obj, prefix) -%}
+<div
+    class="grouped fields{% if obj.is_readonly %} disabled{% endif %}"
+    data-input-type="filter-datetime"
+    data-input-min-value="{{ obj.min_value.strftime('%Y-%m-%dT%H:%M:%S') }}"
+    data-input-max-value="{{ obj.max_value.strftime('%Y-%m-%dT%H:%M:%S') }}">
+    <label for="{{ prefix }}{{ obj.name }}" class="col-sm-2 col-form-label col-form-label-sm">{{ obj.verbose_name }}</label>
+    <div class="field{% if obj.is_invalid('lower') %} error{% endif %}">
+        <div class="ui labeled input">
+            <label class="ui label" for="{{ prefix }}{{ obj.name }}:lower">&ge;</label>
+            <input
+                type="text"
+                id="{{ prefix }}{{ obj.name }}:lower"
+                name="{{ prefix }}{{ obj.name }}:lower"
+                value="{{ obj.list_filter_value_format()[0] }}"{% if obj.is_readonly %}
+                readonly="readonly"{% endif %}>
+        </div>
+        {% if obj.is_invalid('lower') %}<div class="ui pointing red basic label">{% for error in obj.errors('lower') %}{{ error }}{% endfor %}</div>{% endif %}
+    </div>
+    <div class="field{% if obj.is_invalid('upper') %} error{% endif %}">
+        <div class="ui labeled input">
+            <label class="ui label" for="{{ prefix }}{{ obj.name }}:upper">&le;</label>
+            <input
+                type="text"
+                id="{{ prefix }}{{ obj.name }}:upper"
+                name="{{ prefix }}{{ obj.name }}:upper"
+                value="{{ obj.list_filter_value_format()[1] }}"{% if obj.is_readonly %}
+                readonly="readonly"{% endif %}>
+        </div>
+        {% if obj.is_invalid('upper') %}<div class="ui pointing red basic label">{% for error in obj.errors('upper') %}{{ error }}{% endfor %}</div>{% endif %}
+    </div>
 </div>
 {%- endmacro %}
 {% endif %}
@@ -100,22 +220,22 @@
 {# EMAIL #}
 
 {% if not item_select_email %}
-{% macro item_select_email(obj, prefix) -%}
+{% macro  item_select_email(obj, prefix) -%}
 <div class="field transparent">
     <label for="{{ prefix }}{{ obj.name }}">{{ obj.verbose_name }}</label>
     <input
         type="email"
         id="{{ prefix }}{{ obj.name }}"
         name="{{ prefix }}{{ obj.name }}"
-        value="{{ obj.item_update_value_format() }}"
+        value="{{ obj.item_select_value_format() }}"
         disabled="disabled">
 </div>
 {%- endmacro %}
 {% endif %}
 
 {% if not item_update_email %}
-{% macro item_update_email(obj, prefix) -%}
-<div class="field{% if obj.is_invalid() %} error{% endif %}{% if obj.is_readonly %} disabled{% endif %}">
+{% macro  item_update_email(obj, prefix) -%}
+<div class="field{% if obj.is_invalid('value') %} error{% endif %}{% if obj.is_readonly %} disabled{% endif %}">
     <label for="{{ prefix }}{{ obj.name }}">{{ obj.verbose_name }}</label>
     <input
         type="email"
@@ -123,7 +243,22 @@
         name="{{ prefix }}{{ obj.name }}"
         value="{{ obj.item_update_value_format() }}"{% if obj.is_readonly %}
         readonly="readonly"{% endif %}>
-    {% if obj.is_invalid() %}<div class="ui pointing red basic label">{% for error in obj.errors() %}{{ error }}{% endfor %}</div>{% endif %}
+    {% if obj.is_invalid('value') %}<div class="ui pointing red basic label">{% for error in obj.errors('value') %}{{ error }}{% endfor %}</div>{% endif %}
+</div>
+{%- endmacro %}
+{% endif %}
+
+{% if not list_filter_email %}
+{% macro  list_filter_email(obj, prefix) -%}
+<div class="field{% if obj.is_invalid('value') %} error{% endif %}{% if obj.is_readonly %} disabled{% endif %}">
+    <label for="{{ prefix }}{{ obj.name }}">{{ obj.verbose_name }}</label>
+    <input
+        type="text"
+        id="{{ prefix }}{{ obj.name }}"
+        name="{{ prefix }}{{ obj.name }}"
+        value="{{ obj.list_filter_value_format() }}"{% if obj.is_readonly %}
+        readonly="readonly"{% endif %}>
+    {% if obj.is_invalid('value') %}<div class="ui pointing red basic label">{% for error in obj.errors('value') %}{{ error }}{% endfor %}</div>{% endif %}
 </div>
 {%- endmacro %}
 {% endif %}
@@ -131,22 +266,22 @@
 {# FILE #}
 
 {% if not item_select_file %}
-{% macro item_select_file(obj, prefix) -%}
+{% macro  item_select_file(obj, prefix) -%}
 <div class="field transparent">
     <label for="{{ prefix }}{{ obj.name }}">{{ obj.verbose_name }}</label>
     <input
         type="file"
         id="{{ prefix }}{{ obj.name }}"
         name="{{ prefix }}{{ obj.name }}"
-        value="{{ obj.item_update_value_format() }}"
+        value="{{ obj.item_select_value_format() }}"
         disabled="disabled">
 </div>
 {%- endmacro %}
 {% endif %}
 
 {% if not item_update_file %}
-{% macro item_update_file(obj, prefix) -%}
-<div class="field{% if obj.is_invalid() %} error{% endif %}{% if obj.is_readonly %} disabled{% endif %}">
+{% macro  item_update_file(obj, prefix) -%}
+<div class="field{% if obj.is_invalid('value') %} error{% endif %}{% if obj.is_readonly %} disabled{% endif %}">
     <label for="{{ prefix }}{{ obj.name }}">{{ obj.verbose_name }}</label>
     <input
         type="file"
@@ -154,56 +289,102 @@
         name="{{ prefix }}{{ obj.name }}"
         value="{{ obj.item_update_value_format() }}"{% if obj.is_readonly %}
         readonly="readonly"{% endif %}>
-    {% if obj.is_invalid() %}<div class="ui pointing red basic label">{% for error in obj.errors() %}{{ error }}{% endfor %}</div>{% endif %}
+    {% if obj.is_invalid('value') %}<div class="ui pointing red basic label">{% for error in obj.errors('value') %}{{ error }}{% endfor %}</div>{% endif %}
 </div>
 {%- endmacro %}
+{% endif %}
+
+{% if not list_filter_file %}
+{% macro  list_filter_file(obj, prefix) -%}{%- endmacro %}
 {% endif %}
 
 {# HIDDEN #}
 
 {% if not item_select_hidden %}
-{% macro item_select_hidden(obj, prefix) -%}
-<input type="hidden" name="{{ obj.name }}" value="{{ obj.item_update_value_format() }}" />
+{% macro  item_select_hidden(obj, prefix) -%}
+<input type="hidden" name="{{ obj.name }}" value="{{ obj.item_select_value_format() }}" />
 {%- endmacro %}
 {% endif %}
 
 {% if not item_update_hidden %}
-{% macro item_update_hidden(obj, prefix) -%}
+{% macro  item_update_hidden(obj, prefix) -%}
 <input type="hidden" name="{{ obj.name }}" value="{{ obj.item_update_value_format() }}" />
 {%- endmacro %}
+{% endif %}
+
+{% if not list_filter_hidden %}
+{% macro  list_filter_hidden(obj, prefix) -%}{%- endmacro %}
 {% endif %}
 
 {# NUMBER #}
 
 {% if not item_select_number %}
-{% macro item_select_number(obj, prefix) -%}
+{% macro  item_select_number(obj, prefix) -%}
 <div class="field transparent">
     <label for="{{ prefix }}{{ obj.name }}">{{ obj.verbose_name }}</label>
     <input
         type="number"
         id="{{ prefix }}{{ obj.name }}"
         name="{{ prefix }}{{ obj.name }}"
-        value="{{ obj.item_update_value_format() }}"
-        disabled="disabled"
-        step="{{ obj.step }}">
+        value="{{ obj.item_select_value_format() }}"
+        step="{{ obj.step }}"
+        disabled="disabled">
 </div>
 {%- endmacro %}
 {% endif %}
 
 {% if not item_update_number %}
-{% macro item_update_number(obj, prefix) -%}
-<div class="field{% if obj.is_invalid() %} error{% endif %}{% if obj.is_readonly %} disabled{% endif %}">
+{% macro  item_update_number(obj, prefix) -%}
+<div class="field{% if obj.is_invalid('value') %} error{% endif %}{% if obj.is_readonly %} disabled{% endif %}">
     <label for="{{ prefix }}{{ obj.name }}">{{ obj.verbose_name }}</label>
     <input
         type="number"
         id="{{ prefix }}{{ obj.name }}"
         name="{{ prefix }}{{ obj.name }}"
-        value="{{ obj.item_update_value_format() }}"{% if obj.is_readonly %}
-        readonly="readonly"{% endif %}
+        value="{{ obj.item_update_value_format() }}"
+        step="{{ obj.step }}"
         min="{{ obj.min_value }}"
-        max="{{ obj.max_value }}"
-        step="{{ obj.step }}">
-    {% if obj.is_invalid() %}<div class="ui pointing red basic label">{% for error in obj.errors() %}{{ error }}{% endfor %}</div>{% endif %}
+        max="{{ obj.max_value }}"{% if obj.is_readonly %}
+        readonly="readonly"{% endif %}>
+    {% if obj.is_invalid('value') %}<div class="ui pointing red basic label">{% for error in obj.errors('value') %}{{ error }}{% endfor %}</div>{% endif %}
+</div>
+{%- endmacro %}
+{% endif %}
+
+{% if not list_filter_number %}
+{% macro  list_filter_number(obj, prefix) -%}
+<div class="grouped fields{% if obj.is_readonly %} disabled{% endif %}">
+    <label for="{{ prefix }}{{ obj.name }}" class="col-sm-2 col-form-label col-form-label-sm">{{ obj.verbose_name }}</label>
+    <div class="field{% if obj.is_invalid('lower') %} error{% endif %}">
+        <div class="ui labeled input">
+            <label class="ui label" for="{{ prefix }}{{ obj.name }}:lower">&ge;</label>
+            <input
+                type="number"
+                id="{{ prefix }}{{ obj.name }}:lower"
+                name="{{ prefix }}{{ obj.name }}:lower"
+                value="{{ obj.list_filter_value_format()[0] }}"
+                step="{{ obj.step }}"
+                min="{{ obj.min_value }}"
+                max="{{ obj.max_value }}"{% if obj.is_readonly %}
+                readonly="readonly"{% endif %}>
+        </div>
+        {% if obj.is_invalid('lower') %}<div class="ui pointing red basic label">{% for error in obj.errors('lower') %}{{ error }}{% endfor %}</div>{% endif %}
+    </div>
+    <div class="field{% if obj.is_invalid('upper') %} error{% endif %}">
+        <div class="ui labeled input">
+            <label class="ui label" for="{{ prefix }}{{ obj.name }}:upper">&le;</label>
+            <input
+                type="number"
+                id="{{ prefix }}{{ obj.name }}:upper"
+                name="{{ prefix }}{{ obj.name }}:upper"
+                value="{{ obj.list_filter_value_format()[1] }}"
+                step="{{ obj.step }}"
+                min="{{ obj.min_value }}"
+                max="{{ obj.max_value }}"{% if obj.is_readonly %}
+                readonly="readonly"{% endif %}>
+        </div>
+        {% if obj.is_invalid('upper') %}<div class="ui pointing red basic label">{% for error in obj.errors('upper') %}{{ error }}{% endfor %}</div>{% endif %}
+    </div>
 </div>
 {%- endmacro %}
 {% endif %}
@@ -211,22 +392,22 @@
 {# PASSWORD #}
 
 {% if not item_select_password %}
-{% macro item_select_password(obj, prefix) -%}
+{% macro  item_select_password(obj, prefix) -%}
 <div class="field transparent">
     <label for="{{ prefix }}{{ obj.name }}">{{ obj.verbose_name }}</label>
     <input
         type="password"
         id="{{ prefix }}{{ obj.name }}"
         name="{{ prefix }}{{ obj.name }}"
-        value="{{ obj.item_update_value_format() }}"
+        value="{{ obj.item_select_value_format() }}"
         disabled="disabled">
 </div>
 {%- endmacro %}
 {% endif %}
 
 {% if not item_update_password %}
-{% macro item_update_password(obj, prefix) -%}
-<div class="field{% if obj.is_invalid() %} error{% endif %}{% if obj.is_readonly %} disabled{% endif %}">
+{% macro  item_update_password(obj, prefix) -%}
+<div class="field{% if obj.is_invalid('value') %} error{% endif %}{% if obj.is_readonly %} disabled{% endif %}">
     <label for="{{ prefix }}{{ obj.name }}">{{ obj.verbose_name }}</label>
     <input
         type="password"
@@ -234,15 +415,19 @@
         name="{{ prefix }}{{ obj.name }}"
         value="{{ obj.item_update_value_format() }}"{% if obj.is_readonly %}
         readonly="readonly"{% endif %}>
-    {% if obj.is_invalid() %}<div class="ui pointing red basic label">{% for error in obj.errors() %}{{ error }}{% endfor %}</div>{% endif %}
+    {% if obj.is_invalid('value') %}<div class="ui pointing red basic label">{% for error in obj.errors('value') %}{{ error }}{% endfor %}</div>{% endif %}
 </div>
 {%- endmacro %}
+{% endif %}
+
+{% if not list_filter_password %}
+{% macro  list_filter_password(obj, prefix) -%}{%- endmacro %}
 {% endif %}
 
 {# RADIO #}
 
 {% if not item_select_radio %}
-{% macro item_select_radio(obj, prefix) -%}
+{% macro  item_select_radio(obj, prefix) -%}
 <div class="grouped fields transparent">
     <label for="{{ prefix }}{{ obj.name }}" class="col-sm-2 col-form-label col-form-label-sm">{{ obj.verbose_name }}</label>
     {% for value, label in obj.choices.items() %}
@@ -253,7 +438,7 @@
                 id="{{ prefix }}{{ obj.name }}_{{ value }}"
                 name="{{ prefix }}{{ obj.name }}"
                 value="{{ value }}"
-                disabled="disabled"{% if obj.item_update_value_format() == value %}
+                disabled="disabled"{% if obj.item_select_value() == value %}
                 checked="checked"{% endif %}>
             <label for="{{ prefix }}{{ obj.name }}_{{ value }}">{{ label }}</label>
         </div>
@@ -264,8 +449,8 @@
 {% endif %}
 
 {% if not item_update_radio %}
-{% macro item_update_radio(obj, prefix) -%}
-<div class="grouped fields{% if obj.is_readonly %} disabled{% endif %}">
+{% macro  item_update_radio(obj, prefix) -%}
+<div class="grouped fields{% if obj.is_invalid('value') %} error{% endif %}{% if obj.is_readonly %} disabled{% endif %}">
     <label for="{{ prefix }}{{ obj.name }}" class="col-sm-2 col-form-label col-form-label-sm">{{ obj.verbose_name }}</label>
     {% for value, label in obj.choices.items() %}
     <div class="field">
@@ -275,13 +460,36 @@
                 id="{{ prefix }}{{ obj.name }}_{{ value }}"
                 name="{{ prefix }}{{ obj.name }}"
                 value="{{ value }}"{% if obj.is_readonly %}
-                readonly="readonly"{% endif %}{% if obj.item_update_value_format() == value %}
+                readonly="readonly"{% endif %}{% if obj.item_update_value() == value %}
                 checked="checked"{% endif %}>
             <label for="{{ prefix }}{{ obj.name }}_{{ value }}">{{ label }}</label>
         </div>
     </div>
     {% endfor %}
-    {% if obj.is_invalid() %}<div class="ui pointing red basic label">{% for error in obj.errors() %}{{ error }}{% endfor %}</div>{% endif %}
+    {% if obj.is_invalid('value') %}<div class="ui pointing red basic label">{% for error in obj.errors('value') %}{{ error }}{% endfor %}</div>{% endif %}
+</div>
+{%- endmacro %}
+{% endif %}
+
+{% if not list_filter_radio %}
+{% macro  list_filter_radio(obj, prefix) -%}
+<div class="grouped fields{% if obj.is_readonly %} disabled{% endif %}">
+    <label for="{{ prefix }}{{ obj.name }}" class="col-sm-2 col-form-label col-form-label-sm">{{ obj.verbose_name }}</label>
+    {% for value, label in obj.choices.items() %}{% if value %}
+    <div class="field{% if obj.is_invalid(value) %} error{% endif %}">
+        <div class="ui checkbox">
+            <input
+                type="checkbox"
+                id="{{ prefix }}{{ obj.name }}:{{ value }}"
+                name="{{ prefix }}{{ obj.name }}:{{ value }}"
+                value="true"{% if obj.is_readonly %}
+                readonly="readonly"{% endif %}{% if obj.list_filter_value()[value] %}
+                checked="checked"{% endif %}>
+            <label for="{{ prefix }}{{ obj.name }}:{{ value }}">{{ label }}</label>
+        </div>
+    </div>
+    {% if obj.is_invalid(value) %}<div class="ui pointing red basic label">{% for error in obj.errors(value) %}{{ error }}{% endfor %}</div>{% endif %}
+    {% endif %}{% endfor %}
 </div>
 {%- endmacro %}
 {% endif %}
@@ -289,7 +497,7 @@
 {# SEARCH #}
 
 {% if not item_select_search %}
-{% macro item_select_search(obj, prefix) -%}
+{% macro  item_select_search(obj, prefix) -%}
 <div class="field transparent">
     <label for="{{ prefix }}{{ obj.name }}">{{ obj.verbose_name }}</label>
     <div class="ui icon input">
@@ -297,7 +505,7 @@
             type="search"
             id="{{ prefix }}{{ obj.name }}"
             name="{{ prefix }}{{ obj.name }}"
-            value="{{ obj.item_update_value_format() }}"
+            value="{{ obj.item_select_value_format() }}"
             disabled="disabled">
         <i class="search icon"></i>
     </div>
@@ -306,8 +514,8 @@
 {% endif %}
 
 {% if not item_update_search %}
-{% macro item_update_search(obj, prefix) -%}
-<div class="field{% if obj.is_invalid() %} error{% endif %}{% if obj.is_readonly %} disabled{% endif %}">
+{% macro  item_update_search(obj, prefix) -%}
+<div class="field{% if obj.is_invalid('value') %} error{% endif %}{% if obj.is_readonly %} disabled{% endif %}">
     <label for="{{ prefix }}{{ obj.name }}">{{ obj.verbose_name }}</label>
     <div class="ui icon input">
         <input
@@ -318,7 +526,22 @@
             readonly="readonly"{% endif %}>
         <i class="search icon"></i>
     </div>
-    {% if obj.is_invalid() %}<div class="ui pointing red basic label">{% for error in obj.errors() %}{{ error }}{% endfor %}</div>{% endif %}
+    {% if obj.is_invalid('value') %}<div class="ui pointing red basic label">{% for error in obj.errors('value') %}{{ error }}{% endfor %}</div>{% endif %}
+</div>
+{%- endmacro %}
+{% endif %}
+
+{% if not list_filter_search %}
+{% macro  list_filter_search(obj, prefix) -%}
+<div class="field{% if obj.is_invalid('value') %} error{% endif %}{% if obj.is_readonly %} disabled{% endif %}">
+    <label for="{{ prefix }}{{ obj.name }}">{{ obj.verbose_name }}</label>
+    <input
+        type="text"
+        id="{{ prefix }}{{ obj.name }}"
+        name="{{ prefix }}{{ obj.name }}"
+        value="{{ obj.list_filter_value_format() }}"{% if obj.is_readonly %}
+        readonly="readonly"{% endif %}>
+    {% if obj.is_invalid('value') %}<div class="ui pointing red basic label">{% for error in obj.errors('value') %}{{ error }}{% endfor %}</div>{% endif %}
 </div>
 {%- endmacro %}
 {% endif %}
@@ -326,7 +549,7 @@
 {# SELECT #}
 
 {% if not item_select_select %}
-{% macro item_select_select(obj, prefix) -%}
+{% macro  item_select_select(obj, prefix) -%}
 <div class="field transparent">
     <label for="{{ prefix }}{{ obj.name }}">{{ obj.verbose_name }}</label>
     <select
@@ -335,7 +558,7 @@
         name="{{ prefix }}{{ obj.name }}"
         disabled="disabled">
 {% for value, label in obj.choices.items() %}
-        <option value="{{ value }}"{% if obj.item_update_value() == value %} selected="selected"{% endif %}>{{ label }}</option>
+        <option value="{{ value }}"{% if obj.item_select_value() == value %} selected="selected"{% endif %}>{{ label }}</option>
 {% endfor %}
     </select>
 </div>
@@ -343,8 +566,8 @@
 {% endif %}
 
 {% if not item_update_select %}
-{% macro item_update_select(obj, prefix) -%}
-<div class="field{% if obj.is_invalid() %} error{% endif %}{% if obj.is_readonly %} disabled{% endif %}">
+{% macro  item_update_select(obj, prefix) -%}
+<div class="field{% if obj.is_invalid('value') %} error{% endif %}{% if obj.is_readonly %} disabled{% endif %}">
     <label for="{{ prefix }}{{ obj.name }}">{{ obj.verbose_name }}</label>
     <select
         class="ui dropdown"
@@ -355,7 +578,30 @@
         <option value="{{ value }}"{% if obj.item_update_value() == value %} selected="selected"{% endif %}>{{ label }}</option>
 {% endfor %}
     </select>
-    {% if obj.is_invalid() %}<div class="ui pointing red basic label">{% for error in obj.errors() %}{{ error }}{% endfor %}</div>{% endif %}
+    {% if obj.is_invalid('value') %}<div class="ui pointing red basic label">{% for error in obj.errors('value') %}{{ error }}{% endfor %}</div>{% endif %}
+</div>
+{%- endmacro %}
+{% endif %}
+
+{% if not list_filter_select %}
+{% macro  list_filter_select(obj, prefix) -%}
+<div class="grouped fields{% if obj.is_readonly %} disabled{% endif %}">
+    <label for="{{ prefix }}{{ obj.name }}" class="col-sm-2 col-form-label col-form-label-sm">{{ obj.verbose_name }}</label>
+    {% for value, label in obj.choices.items() %}{% if value %}
+    <div class="field{% if obj.is_invalid(value) %} error{% endif %}">
+        <div class="ui checkbox">
+            <input
+                type="checkbox"
+                id="{{ prefix }}{{ obj.name }}:{{ value }}"
+                name="{{ prefix }}{{ obj.name }}:{{ value }}"
+                value="true"{% if obj.is_readonly %}
+                readonly="readonly"{% endif %}{% if obj.list_filter_value()[value] %}
+                checked="checked"{% endif %}>
+            <label for="{{ prefix }}{{ obj.name }}:{{ value }}">{{ label }}</label>
+        </div>
+    </div>
+    {% if obj.is_invalid(value) %}<div class="ui pointing red basic label">{% for error in obj.errors(value) %}{{ error }}{% endfor %}</div>{% endif %}
+    {% endif %}{% endfor %}
 </div>
 {%- endmacro %}
 {% endif %}
@@ -363,22 +609,22 @@
 {# TEXT #}
 
 {% if not item_select_text %}
-{% macro item_select_text(obj, prefix) -%}
+{% macro  item_select_text(obj, prefix) -%}
 <div class="field transparent">
     <label for="{{ prefix }}{{ obj.name }}">{{ obj.verbose_name }}</label>
     <input
         type="text"
         id="{{ prefix }}{{ obj.name }}"
         name="{{ prefix }}{{ obj.name }}"
-        value="{{ obj.item_update_value_format() }}"
+        value="{{ obj.item_select_value_format() }}"
         disabled="disabled">
 </div>
 {%- endmacro %}
 {% endif %}
 
 {% if not item_update_text %}
-{% macro item_update_text(obj, prefix) -%}
-<div class="field{% if obj.is_invalid() %} error{% endif %}{% if obj.is_readonly %} disabled{% endif %}">
+{% macro  item_update_text(obj, prefix) -%}
+<div class="field{% if obj.is_invalid('value') %} error{% endif %}{% if obj.is_readonly %} disabled{% endif %}">
     <label for="{{ prefix }}{{ obj.name }}">{{ obj.verbose_name }}</label>
     <input
         type="text"
@@ -386,7 +632,22 @@
         name="{{ prefix }}{{ obj.name }}"
         value="{{ obj.item_update_value_format() }}"{% if obj.is_readonly %}
         readonly="readonly"{% endif %}>
-    {% if obj.is_invalid() %}<div class="ui pointing red basic label">{% for error in obj.errors() %}{{ error }}{% endfor %}</div>{% endif %}
+    {% if obj.is_invalid('value') %}<div class="ui pointing red basic label">{% for error in obj.errors('value') %}{{ error }}{% endfor %}</div>{% endif %}
+</div>
+{%- endmacro %}
+{% endif %}
+
+{% if not list_filter_text %}
+{% macro  list_filter_text(obj, prefix) -%}
+<div class="field{% if obj.is_invalid('value') %} error{% endif %}{% if obj.is_readonly %} disabled{% endif %}">
+    <label for="{{ prefix }}{{ obj.name }}">{{ obj.verbose_name }}</label>
+    <input
+        type="text"
+        id="{{ prefix }}{{ obj.name }}"
+        name="{{ prefix }}{{ obj.name }}"
+        value="{{ obj.list_filter_value_format() }}"{% if obj.is_readonly %}
+        readonly="readonly"{% endif %}>
+    {% if obj.is_invalid('value') %}<div class="ui pointing red basic label">{% for error in obj.errors('value') %}{{ error }}{% endfor %}</div>{% endif %}
 </div>
 {%- endmacro %}
 {% endif %}
@@ -394,30 +655,70 @@
 {# TIME #}
 
 {% if not item_select_time %}
-{% macro item_select_time(obj, prefix) -%}
-<div class="field{% if obj.is_invalid() %} error{% endif %}{% if obj.is_readonly %} disabled{% endif %}">
+{% macro  item_select_time(obj, prefix) -%}
+<div class="field{% if obj.is_readonly %} disabled{% endif %}">
     <label for="{{ prefix }}{{ obj.name }}">{{ obj.verbose_name }}</label>
     <input
         type="time"
         id="{{ prefix }}{{ obj.name }}"
         name="{{ prefix }}{{ obj.name }}"
-        value="{{ obj.item_update_value_format() }}"
+        value="{{ obj.item_select_value_format() }}"
+        step="1"
         disabled="disabled">
 </div>
 {%- endmacro %}
 {% endif %}
 
 {% if not item_update_time %}
-{% macro item_update_time(obj, prefix) -%}
-<div class="field{% if obj.is_invalid() %} error{% endif %}{% if obj.is_readonly %} disabled{% endif %}">
+{% macro  item_update_time(obj, prefix) -%}
+<div class="field{% if obj.is_invalid('value') %} error{% endif %}{% if obj.is_readonly %} disabled{% endif %}">
     <label for="{{ prefix }}{{ obj.name }}">{{ obj.verbose_name }}</label>
     <input
         type="time"
         id="{{ prefix }}{{ obj.name }}"
         name="{{ prefix }}{{ obj.name }}"
-        value="{{ obj.item_update_value_format() }}"{% if obj.is_readonly %}
+        value="{{ obj.item_update_value_format() }}"
+        step="1"{% if obj.is_readonly %}
         readonly="readonly"{% endif %}>
-    {% if obj.is_invalid() %}<div class="ui pointing red basic label">{% for error in obj.errors() %}{{ error }}{% endfor %}</div>{% endif %}
+    {% if obj.is_invalid('value') %}<div class="ui pointing red basic label">{% for error in obj.errors('value') %}{{ error }}{% endfor %}</div>{% endif %}
+</div>
+{%- endmacro %}
+{% endif %}
+
+{% if not list_filter_time %}
+{% macro  list_filter_time(obj, prefix) -%}
+<div class="grouped fields{% if obj.is_readonly %} disabled{% endif %}">
+    <label for="{{ prefix }}{{ obj.name }}" class="col-sm-2 col-form-label col-form-label-sm">{{ obj.verbose_name }}</label>
+    <div class="field{% if obj.is_invalid('lower') %} error{% endif %}">
+        <div class="ui labeled input">
+            <label class="ui label" for="{{ prefix }}{{ obj.name }}:lower">&ge;</label>
+            <input
+                type="time"
+                id="{{ prefix }}{{ obj.name }}:lower"
+                name="{{ prefix }}{{ obj.name }}:lower"
+                value="{{ obj.list_filter_value_format()[0] }}"
+                step="1"
+                min="{{ obj.min_value.strftime('%H:%M:%S') }}"
+                max="{{ obj.max_value.strftime('%H:%M:%S') }}"{% if obj.is_readonly %}
+                readonly="readonly"{% endif %}>
+        </div>
+        {% if obj.is_invalid('lower') %}<div class="ui pointing red basic label">{% for error in obj.errors('lower') %}{{ error }}{% endfor %}</div>{% endif %}
+    </div>
+    <div class="field{% if obj.is_invalid('upper') %} error{% endif %}">
+        <div class="ui labeled input">
+            <label class="ui label" for="{{ prefix }}{{ obj.name }}:upper">&le;</label>
+            <input
+                type="time"
+                id="{{ prefix }}{{ obj.name }}:upper"
+                name="{{ prefix }}{{ obj.name }}:upper"
+                value="{{ obj.list_filter_value_format()[1] }}"
+                step="1"
+                min="{{ obj.min_value.strftime('%H:%M:%S') }}"
+                max="{{ obj.max_value.strftime('%H:%M:%S') }}"{% if obj.is_readonly %}
+                readonly="readonly"{% endif %}>
+        </div>
+        {% if obj.is_invalid('upper') %}<div class="ui pointing red basic label">{% for error in obj.errors('upper') %}{{ error }}{% endfor %}</div>{% endif %}
+    </div>
 </div>
 {%- endmacro %}
 {% endif %}
@@ -425,23 +726,22 @@
 {# URL #}
 
 {% if not item_select_url %}
-{% macro item_select_url(obj, prefix) -%}
+{% macro  item_select_url(obj, prefix) -%}
 <div class="field transparent">
     <label for="{{ prefix }}{{ obj.name }}">{{ obj.verbose_name }}</label>
     <input
         type="url"
         id="{{ prefix }}{{ obj.name }}"
         name="{{ prefix }}{{ obj.name }}"
-        value="{{ obj.item_update_value_format() }}"
+        value="{{ obj.item_select_value_format() }}"
         disabled="disabled">
-    {% if obj.is_invalid() %}<div class="ui pointing red basic label">{% for error in obj.errors() %}{{ error }}{% endfor %}</div>{% endif %}
 </div>
 {%- endmacro %}
 {% endif %}
 
 {% if not item_update_url %}
-{% macro item_update_url(obj, prefix) -%}
-<div class="field{% if obj.is_invalid() %} error{% endif %}{% if obj.is_readonly %} disabled{% endif %}">
+{% macro  item_update_url(obj, prefix) -%}
+<div class="field{% if obj.is_invalid('value') %} error{% endif %}{% if obj.is_readonly %} disabled{% endif %}">
     <label for="{{ prefix }}{{ obj.name }}">{{ obj.verbose_name }}</label>
     <input
         type="url"
@@ -449,7 +749,22 @@
         name="{{ prefix }}{{ obj.name }}"
         value="{{ obj.item_update_value_format() }}"{% if obj.is_readonly %}
         readonly="readonly"{% endif %}>
-    {% if obj.is_invalid() %}<div class="ui pointing red basic label">{% for error in obj.errors() %}{{ error }}{% endfor %}</div>{% endif %}
+    {% if obj.is_invalid('value') %}<div class="ui pointing red basic label">{% for error in obj.errors('value') %}{{ error }}{% endfor %}</div>{% endif %}
+</div>
+{%- endmacro %}
+{% endif %}
+
+{% if not list_filter_url %}
+{% macro  list_filter_url(obj, prefix) -%}
+<div class="field{% if obj.is_invalid('value') %} error{% endif %}{% if obj.is_readonly %} disabled{% endif %}">
+    <label for="{{ prefix }}{{ obj.name }}">{{ obj.verbose_name }}</label>
+    <input
+        type="text"
+        id="{{ prefix }}{{ obj.name }}"
+        name="{{ prefix }}{{ obj.name }}"
+        value="{{ obj.list_filter_value_format() }}"{% if obj.is_readonly %}
+        readonly="readonly"{% endif %}>
+    {% if obj.is_invalid('value') %}<div class="ui pointing red basic label">{% for error in obj.errors('value') %}{{ error }}{% endfor %}</div>{% endif %}
 </div>
 {%- endmacro %}
 {% endif %}

@@ -1,15 +1,11 @@
 {% import 'macros/view_inputs_semantic.html' as view_inputs_semantic %}
 
 {% macro item_select(obj) %}
-{% for input in obj._inputs  %}
-{{ input|render_macro('view_inputs_semantic', 'item_select_' + input.jinja2_macro_name, obj._prefix) }}
-{% endfor %}
+{% for input in obj._inputs  %}{% if input.can_item_select %}{{ input|render_macro('view_inputs_semantic', 'item_select_' + input.jinja2_macro_name, obj._prefix) }}{% endif %}{% endfor %}
 {%- endmacro %}
 
 {% macro item_update(obj) %}
-{% for input in obj._inputs  %}
-{{ input|render_macro('view_inputs_semantic', 'item_update_' + input.jinja2_macro_name, obj._prefix) }}
-{% endfor %}
+{% for input in obj._inputs  %}{% if input.can_item_update %}{{ input|render_macro('view_inputs_semantic', 'item_update_' + input.jinja2_macro_name, obj._prefix) }}{% endif %}{% endfor %}
 {%- endmacro %}
 
 {% macro list_select(obj) %}
@@ -19,8 +15,6 @@
 {%- endmacro %}
 
 {% macro list_filter(obj) %}
-{% for input in obj._inputs  %}{% if input.can_filter %}
-<p>{{ input.name }}</p>
-{% endif %}{% endfor %}
+{% for input in obj._inputs  %}{% if input.can_list_filter %}{{ input|render_macro('view_inputs_semantic', 'list_filter_' + input.jinja2_macro_name, obj._prefix) }}{% endif %}{% endfor %}
 {%- endmacro %}
 

@@ -15,7 +15,9 @@ class DefaultHandler(Jinja2HandlerBase):
         super().__init__(Environment(
             loader=FileSystemLoader(dirname(__file__)),
             # Always enable async.
-            enable_async=True))
+            enable_async=True,
+            # Disable template caching for debugging purposes
+            cache_size=0))
 
     @jinja2_template('test_jinja2_handler.html')
     async def get(self, request, response):

@@ -1,3 +1,4 @@
+from collections import defaultdict
 from datetime import date
 from datetime import datetime
 from datetime import time
@@ -11,29 +12,42 @@ class InputBase(object):
         self,
         jinja2_macro_name,
         attributes={},
-        can_sort=False,
-        can_filter=False,
-        can_search=False,
+        can_item_select=True,
+        can_item_update=True,
+        can_list_select=True,
+        can_list_update=True,
+        can_list_filter=False,
+        can_list_search=False,
+        can_list_sort=False,
         is_readonly=False,
         is_nullable=False,
         verbose_name=None,
         help_text=None,
         choices=None,
-        default=None):
+        default_item_select=None,
+        default_item_update=None,
+        default_list_select=None,
+        default_list_update=None,
+        default_list_filter=None):
         self.name = None
         self.jinja2_macro_name = jinja2_macro_name
         self.attributes = attributes
-        self.can_sort = can_sort
-        self.can_filter = can_filter
-        self.can_search = can_search
+        self.can_item_select = can_item_select
+        self.can_item_update = can_item_update
+        self.can_list_select = can_list_select
+        self.can_list_update = can_list_update
+        self.can_list_filter = can_list_filter
+        self.can_list_search = can_list_search
+        self.can_list_sort = can_list_sort
         self.is_readonly = is_readonly
         self.verbose_name = verbose_name
         self.help_text = help_text
         self.choices = choices
-        self.default = default
-
-    def _validate_item_update(self, errors, raw_data):
-        pass
+        self.default_item_select = default_item_select
+        self.default_item_update = default_item_update
+        self.default_list_select = default_list_select
+        self.default_list_update = default_list_update
+        self.default_list_filter = default_list_filter
 
 
 class NullableInputBase(InputBase):
@@ -42,38 +56,108 @@ class NullableInputBase(InputBase):
         jinja2_macro_name,
         not_null_default,
         is_nullable=False,
-        default=None,
+        default_item_select=None,
+        default_item_update=None,
+        default_list_select=None,
+        default_list_update=None,
+        default_list_filter=None,
         **kwargs):
+        if (not is_nullable) and (default_item_select is None):
+            default_item_select = not_null_default
 
-        if (not is_nullable) and (default is None):
-            default = not_null_default
+        if (not is_nullable) and (default_item_update is None):
+            default_item_update = not_null_default
 
-        super().__init__(jinja2_macro_name, default=default, **kwargs)
+        if (not is_nullable) and (default_list_select is None):
+            default_list_select = not_null_default
+
+        if (not is_nullable) and (default_list_update is None):
+            default_list_update = not_null_default
+
+        super().__init__(
+            jinja2_macro_name,
+            default_item_select=default_item_select,
+            default_item_update=default_item_update,
+            default_list_select=default_list_select,
+            default_list_update=default_list_update,
+            **kwargs)
         self.is_nullable = is_nullable
-
-    def _validate_item_update(self, errors, raw_data):
-        if (raw_data is None) and (not self.is_nullable):
-            errors.append(f'No value specified.')
 
 
 class CheckboxInput(InputBase):
     def __init__(self, **kwargs):
         super().__init__('checkbox', **kwargs)
 
-    def _validate_item_update(self, errors, raw_data):
-        super()._validate_item_update(errors, raw_data)
+    def _parse_boolean(self, value):
+        if value is True or value is False:
+            return value
+
+        value = str(value).lower()
+
+        if value in ('t', 'true',  'on',  'yes', '1', 'checked'):
+            return True
+
+        if value in ('f', 'false', 'off', 'no',  '0'):
+            return False
+
+        return None
+
+    def _validate_item_update(self, form_raw_data):
+        result = None
+        errors = []
+        raw_data = form_raw_data.get(self.name)
 
         if raw_data is None:
-            return False
+            result = self.default_item_update
         else:
-            raw_data = raw_data.lower()
+            result = self._parse_boolean(raw_data)
 
-            if raw_data in ('t', 'true', 'on', 'yes', '1', 'checked'):
-                return True
-            elif raw_data in ('f', 'false', 'off', 'no', '0'):
-                return False
-            else:
-                errors.append(f'Invalid value.')
+            if result is None:
+                errors['value'].append(f'Invalid value ({raw_data}).')
+
+        return result, {'value': errors}
+
+    def _validate_list_filter(self, form_raw_data):
+        raw_data = form_raw_data.get(self.name)
+
+        return self._parse_boolean(raw_data), {'state': []}
+
+    def _item_select_value(self, form_result):
+        default = self.default_item_select() if callable(self.default_item_select) else self.default_item_select
+
+        return form_result.get(self.name, default)
+
+    def _item_select_value_format(self, form_result, format=None):
+        value = self._item_select_value(form_result)
+
+        if value is None:
+            return ''
+
+        return str(value)
+
+    def _item_update_value(self, form_result):
+        default = self.default_item_select() if callable(self.default_item_select) else self.default_item_select
+
+        return form_result.get(self.name, default)
+
+    def _item_update_value_format(self, form_result, format=None):
+        value = self._item_update_value(form_result)
+
+        if value is None:
+            return ''
+
+        return str(value)
+
+    def _list_filter_value(self, form_result):
+        default = self.default_list_filter() if callable(self.default_list_filter) else self.default_list_filter
+        value  = self._parse_boolean(form_result.get(self.name, default))
+
+        return value
+
+    def _list_filter_value_format(self, form_result, format=None):
+        value = self._list_filter_value(form_result)
+
+        return ['' if item is None else str(item) for item in value]
 
 
 class DateInput(NullableInputBase):
@@ -88,29 +172,114 @@ class DateInput(NullableInputBase):
         self.max_value = max_value
         self.formats = formats
 
-    def _validate_item_update(self, errors, raw_data):
-        super()._validate_item_update(errors, raw_data)
-
-        if not raw_data is None:
-            value = None
-
-            for format in self.formats:
-                try:
-                    value = datetime.strptime(raw_data, format).date()
-                    break
-                except ValueError:
-                    pass
-
-            if value is None:
-                errors.append(f'Invalid value.')
-            else:
-                if value < self.min_value:
-                    errors.append(f'Value ({value}) must be after {self.min_value}.')
-
-                if value > self.max_value:
-                    errors.append(f'Value ({value}) must be before {self.max_value}.')
-
+    def _parse_date(self, value):
+        if value is None:
             return value
+
+        if type(value) is date:
+            return value
+
+        if type(value) is datetime:
+            return value.date()
+
+        for format in self.formats:
+            try:
+                return datetime.strptime(value, format).date()
+            except ValueError:
+                pass
+
+        return None
+
+    def _validate_item_update(self, form_raw_data):
+        result = None
+        errors = []
+        raw_data = form_raw_data.get(self.name)
+
+        if (raw_data is None) and (not self.is_nullable):
+            errors.append('No value specified.')
+        else:
+            result = self._parse_date(raw_data)
+
+            if result is None:
+                errors.append(f'Invalid value ({raw_data}).')
+            else:
+                if result < self.min_value:
+                    errors.append(f'Value ({raw_data}) must be after {self.min_value}.')
+
+                if result > self.max_value:
+                    errors.append(f'Value ({raw_data}) must be before {self.max_value}.')
+
+        return result, {'value': errors}
+
+    def _validate_list_filter(self, form_raw_data):
+        result_lower = None
+        result_upper = None
+        errors_lower = []
+        errors_upper = []
+        raw_data_lower = form_raw_data.get(self.name + ':lower')
+        raw_data_upper = form_raw_data.get(self.name + ':upper')
+
+        if raw_data_lower:
+            result_lower = self._parse_date(raw_data_lower)
+
+            if result_lower is None:
+                errors_lower.append(f'Invalid value ({raw_data_lower}).')
+
+        if raw_data_upper:
+            result_upper = self._parse_date(raw_data_upper)
+
+            if result_upper is None:
+                errors_upper.append(f'Invalid value ({raw_data_upper}).')
+
+        return [result_lower, result_upper], {'lower': errors_lower, 'upper': errors_upper}
+
+    def _item_select_value(self, form_result):
+        default = self.default_item_select() if callable(self.default_item_select) else self.default_item_select
+
+        return form_result.get(self.name, default)
+
+    def _item_select_value_format(self, form_result, format=None):
+        value = self._item_select_value(form_result)
+
+        if value is None:
+            return ''
+
+        if format is None:
+            return str(value)
+
+        return value.__format__(format)
+
+    def _item_update_value(self, form_result):
+        default = self.default_item_select() if callable(self.default_item_select) else self.default_item_select
+
+        return form_result.get(self.name, default)
+
+    def _item_update_value_format(self, form_result, format=None):
+        value = self._item_update_value(form_result)
+
+        if value is None:
+            return ''
+
+        if format is None:
+            return str(value)
+
+        return value.__format__(format)
+
+    def _list_filter_value(self, form_result):
+        default = self.default_list_filter() if callable(self.default_list_filter) else self.default_list_filter
+
+        return form_result.get(self.name, default)
+
+    def _list_filter_value_format(self, form, format=None):
+        value = self._list_filter_value(form)
+
+        if value is None:
+            return ['', '']
+
+        if format is None:
+            return ['' if item is None else str(item) for item in value]
+
+        return ['' if item is None else item.__format__(format) for item in value]
 
 
 class DateTimeInput(NullableInputBase):
@@ -127,29 +296,111 @@ class DateTimeInput(NullableInputBase):
         self.max_value = max_value
         self.formats = formats
 
-    def _validate_item_update(self, errors, raw_data):
-        super()._validate_item_update(errors, raw_data)
-
-        if not raw_data is None:
-            value = None
-
-            for format in self.formats:
-                try:
-                    value = datetime.strptime(raw_data, format)
-                    break
-                except ValueError:
-                    pass
-
-            if value is None:
-                errors.append(f'Invalid value.')
-            else:
-                if value < self.min_value:
-                    errors.append(f'Value ({value}) must be after {self.min_value}.')
-
-                if value > self.max_value:
-                    errors.append(f'Value ({value}) must be before {self.max_value}.')
-
+    def _parse_datetime(self, value):
+        if value is None:
             return value
+
+        if type(value) is datetime:
+            return value
+
+        for format in self.formats:
+            try:
+                return datetime.strptime(value, format)
+            except ValueError:
+                pass
+
+        return None
+
+    def _validate_item_update(self, form_raw_data):
+        result = None
+        errors = []
+        raw_data = form_raw_data.get(self.name)
+
+        if (raw_data is None) and (not self.is_nullable):
+            errors.append('No value specified.')
+        else:
+            result = self._parse_datetime(raw_data)
+
+            if result is None:
+                errors.append(f'Invalid value ({raw_data}).')
+            else:
+                if result < self.min_value:
+                    errors.append(f'Value ({raw_data}) must be after {self.min_value}.')
+
+                if result > self.max_value:
+                    errors.append(f'Value ({raw_data}) must be before {self.max_value}.')
+
+        return result, {'value': errors}
+
+    def _validate_list_filter(self, form_raw_data):
+        result_lower = None
+        result_upper = None
+        errors_lower = []
+        errors_upper = []
+        raw_data_lower = form_raw_data.get(self.name + ':lower')
+        raw_data_upper = form_raw_data.get(self.name + ':upper')
+
+        if raw_data_lower:
+            result_lower = self._parse_datetime(raw_data_lower)
+
+            if result_lower is None:
+                errors_lower.append(f'Invalid value ({raw_data_lower}).')
+
+        if raw_data_upper:
+            result_upper = self._parse_datetime(raw_data_upper)
+
+            if result_upper is None:
+                errors_upper.append(f'Invalid value ({raw_data_upper}).')
+
+        return [result_lower, result_upper], {'lower': errors_lower, 'upper': errors_upper}
+
+    def _item_select_value(self, form_result):
+        default = self.default_item_select() if callable(self.default_item_select) else self.default_item_select
+
+        return form_result.get(self.name, default)
+
+    def _item_select_value_format(self, form_result, format=None):
+        value = self._item_select_value(form_result)
+
+        if value is None:
+            return ''
+
+        if format is None:
+            return str(value)
+
+        return value.__format__(format)
+
+    def _item_update_value(self, form_result):
+        default = self.default_item_select() if callable(self.default_item_select) else self.default_item_select
+
+        return form_result.get(self.name, default)
+
+    def _item_update_value_format(self, form_result, format=None):
+        value = self._item_update_value(form_result)
+
+        if value is None:
+            return ''
+
+        if format is None:
+            return str(value)
+
+        return value.__format__(format)
+
+    def _list_filter_value(self, form_result):
+        default = self.default_list_filter() if callable(self.default_list_filter) else self.default_list_filter
+
+        return form_result.get(self.name, default)
+
+    def _list_filter_value_format(self, form, format=None):
+        value = self._list_filter_value(form)
+
+        if value is None:
+            return ['', '']
+
+        if format is None:
+            return ['' if item is None else str(item) for item in value]
+
+        return ['' if item is None else item.__format__(format) for item in value]
 
 
 class EMailInput(NullableInputBase):
@@ -157,24 +408,143 @@ class EMailInput(NullableInputBase):
         super().__init__('email', '', **kwargs)
         self.max_length = max_length
 
-    def _validate_item_update(self, errors, raw_data):
-        super()._validate_item_update(errors, raw_data)
+    def _validate_item_update(self, form_raw_data):
+        result = None
+        errors = []
+        raw_data = form_raw_data.get(self.name)
 
-        if not raw_data is None:
+        if (raw_data is None) and (not self.is_nullable):
+            errors.append('No value specified.')
+        else:
             if len(raw_data) > self.max_length:
                 errors.append(f'Length must be less than {self.max_length}.')
 
-            return str(raw_data)
+            result = raw_data
+
+        return result, {'value': errors}
+
+    def _validate_list_filter(self, form_raw_data):
+        result = None
+        errors = []
+        raw_data = form_raw_data.get(self.name)
+
+        if (not raw_data is None) or self.is_nullable:
+            result = raw_data
+
+        return result, {'value': errors}
+
+    def _item_select_value(self, form_result):
+        default = self.default_item_select() if callable(self.default_item_select) else self.default_item_select
+
+        return form_result.get(self.name, default)
+
+    def _item_select_value_format(self, form_result, format=None):
+        value = self._item_select_value(form_result)
+
+        if value is None:
+            return ''
+
+        if format is None:
+            return str(value)
+
+        return value.__format__(format)
+
+    def _item_update_value(self, form_result):
+        default = self.default_item_select() if callable(self.default_item_select) else self.default_item_select
+
+        return form_result.get(self.name, default)
+
+    def _item_update_value_format(self, form_result, format=None):
+        value = self._item_update_value(form_result)
+
+        if value is None:
+            return ''
+
+        if format is None:
+            return str(value)
+
+        return value.__format__(format)
+
+    def _list_filter_value(self, form_result):
+        default = self.default_list_filter() if callable(self.default_list_filter) else self.default_list_filter
+
+        return form_result.get(self.name, default)
+
+    def _list_filter_value_format(self, form, format=None):
+        value = self._list_filter_value(form)
+
+        if value is None:
+            return ''
+
+        if format is None:
+            return str(value)
+
+        return value.__format__(format)
 
 
 class FileInput(NullableInputBase):
     def __init__(self, **kwargs):
         super().__init__('file', None, **kwargs)
 
-    def _validate_item_update(self, errors, raw_data):
-        super()._validate_item_update(errors, raw_data)
+    def _validate_item_update(self, form_raw_data):
+        errors = []
+        raw_data = form_raw_data.get(self.name)
 
-        return raw_data
+        if (raw_data is None) and (not self.is_nullable):
+            errors.append('No value specified.')
+
+        return raw_data, {'value': errors}
+
+    def _validate_list_filter(self, form_raw_data):
+        return None, {'value': []}
+
+    def _item_select_value(self, form_result):
+        default = self.default_item_select() if callable(self.default_item_select) else self.default_item_select
+
+        return form_result.get(self.name, default)
+
+    def _item_select_value_format(self, form_result, format=None):
+        value = self._item_select_value(form_result)
+
+        if value is None:
+            return ''
+
+        if format is None:
+            return str(value)
+
+        return value.__format__(format)
+
+    def _item_update_value(self, form_result):
+        default = self.default_item_select() if callable(self.default_item_select) else self.default_item_select
+
+        return form_result.get(self.name, default)
+
+    def _item_update_value_format(self, form_result, format=None):
+        value = self._item_update_value(form_result)
+
+        if value is None:
+            return ''
+
+        if format is None:
+            return str(value)
+
+        return value.__format__(format)
+
+    def _list_filter_value(self, form_result):
+        default = self.default_list_filter() if callable(self.default_list_filter) else self.default_list_filter
+
+        return form_result.get(self.name, default)
+
+    def _list_filter_value_format(self, form, format=None):
+        value = self._list_filter_value(form)
+
+        if value is None:
+            return ''
+
+        if format is None:
+            return str(value)
+
+        return value.__format__(format)
 
 
 class HiddenInput(NullableInputBase):
@@ -182,14 +552,71 @@ class HiddenInput(NullableInputBase):
         super().__init__('hidden', '', **kwargs)
         self.max_length = max_length
 
-    def _validate_item_update(self, errors, raw_data):
-        super()._validate_item_update(errors, raw_data)
+    def _validate_item_update(self, form_raw_data):
+        result = None
+        errors = []
+        raw_data = form_raw_data.get(self.name)
 
-        if not raw_data is None:
+        if (raw_data is None) and (not self.is_nullable):
+            errors.append('No value specified.')
+        else:
             if len(raw_data) > self.max_length:
                 errors.append(f'Length must be less than {self.max_length}.')
 
-            return str(raw_data)
+            result = raw_data
+
+        return result, {'value': errors}
+
+    def _validate_list_filter(self, form_raw_data):
+        return None, {'value': []}
+
+    def _item_select_value(self, form_result):
+        default = self.default_item_select() if callable(self.default_item_select) else self.default_item_select
+
+        return form_result.get(self.name, default)
+
+    def _item_select_value_format(self, form_result, format=None):
+        value = self._item_select_value(form_result)
+
+        if value is None:
+            return ''
+
+        if format is None:
+            return str(value)
+
+        return value.__format__(format)
+
+    def _item_update_value(self, form_result):
+        default = self.default_item_select() if callable(self.default_item_select) else self.default_item_select
+
+        return form_result.get(self.name, default)
+
+    def _item_update_value_format(self, form_result, format=None):
+        value = self._item_update_value(form_result)
+
+        if value is None:
+            return ''
+
+        if format is None:
+            return str(value)
+
+        return value.__format__(format)
+
+    def _list_filter_value(self, form_result):
+        default = self.default_list_filter() if callable(self.default_list_filter) else self.default_list_filter
+
+        return form_result.get(self.name, default)
+
+    def _list_filter_value_format(self, form, format=None):
+        value = self._list_filter_value(form)
+
+        if value is None:
+            return ''
+
+        if format is None:
+            return str(value)
+
+        return value.__format__(format)
 
 
 class NumberInput(NullableInputBase):
@@ -200,36 +627,110 @@ class NumberInput(NullableInputBase):
         self.decimal_places = decimal_places
         self.step = 1 / (10 ** decimal_places)
 
-    def _validate_item_update(self, errors, raw_data):
-        super()._validate_item_update(errors, raw_data)
+    def _parse_number(self, value):
+        if self.decimal_places == 0:
+            try:
+                return int(value)
+            except ValueError:
+                return None
+        else:
+            try:
+                return Decimal(value)
+            except InvalidOperation:
+                return None
 
-        if not raw_data is None:
-            value = None
+        return value
 
-            if self.decimal_places == 0:
-                try:
-                    value = int(raw_data)
+    def _validate_item_update(self, form_raw_data):
+        result = None
+        errors = []
+        raw_data = form_raw_data.get(self.name)
 
-                    if value < self.min_value:
-                        errors.append(f'Value ({value}) must be greater than {self.min_value}.')
+        if (raw_data is None) and (not self.is_nullable):
+            errors.append('No value specified.')
+        else:
+            result = self._parse_number(raw_data)
 
-                    if value > self.max_value:
-                        errors.append(f'Value ({value}) must be less than {self.max_value}.')
-                except ValueError:
-                    errors.append(f'Invalid value.')
+            if result is None:
+                errors.append(f'Invalid value ({raw_data}).')
             else:
-                try:
-                    value = Decimal(raw_data)
+                if result < self.min_value:
+                    errors.append(f'Value ({raw_data}) must be greater than {self.min_value}.')
 
-                    if value < self.min_value:
-                        errors.append(f'Value ({value}) must be greater than {self.min_value}.')
+                if result > self.max_value:
+                    errors.append(f'Value ({raw_data}) must be less than {self.max_value}.')
 
-                    if value > self.max_value:
-                        errors.append(f'Value ({value}) must be less than {self.max_value}.')
-                except InvalidOperation:
-                    errors.append(f'Invalid value.')
+        return result, {'value': errors}
 
-            return value
+    def _validate_list_filter(self, form_raw_data):
+        result_lower = None
+        result_upper = None
+        errors_lower = []
+        errors_upper = []
+        raw_data_lower = form_raw_data.get(self.name + ':lower')
+        raw_data_upper = form_raw_data.get(self.name + ':upper')
+
+        if raw_data_lower:
+            result_lower = self._parse_number(raw_data_lower)
+
+            if result_lower is None:
+                errors_lower.append(f'Invalid value ({raw_data_lower}).')
+
+        if raw_data_upper:
+            result_upper = self._parse_number(raw_data_upper)
+
+            if result_upper is None:
+                errors_upper.append(f'Invalid value ({raw_data_upper}).')
+
+        return [result_lower, result_upper], {'lower': errors_lower, 'upper': errors_upper}
+
+    def _item_select_value(self, form_result):
+        default = self.default_item_select() if callable(self.default_item_select) else self.default_item_select
+
+        return form_result.get(self.name, default)
+
+    def _item_select_value_format(self, form_result, format=None):
+        value = self._item_select_value(form_result)
+
+        if value is None:
+            return ''
+
+        if format is None:
+            return str(value)
+
+        return value.__format__(format)
+
+    def _item_update_value(self, form_result):
+        default = self.default_item_select() if callable(self.default_item_select) else self.default_item_select
+
+        return form_result.get(self.name, default)
+
+    def _item_update_value_format(self, form_result, format=None):
+        value = self._item_update_value(form_result)
+
+        if value is None:
+            return ''
+
+        if format is None:
+            return str(value)
+
+        return value.__format__(format)
+
+    def _list_filter_value(self, form_result):
+        default = self.default_list_filter() if callable(self.default_list_filter) else self.default_list_filter
+
+        return form_result.get(self.name, default)
+
+    def _list_filter_value_format(self, form, format=None):
+        value = self._list_filter_value(form)
+
+        if value is None:
+            return ['', '']
+
+        if format is None:
+            return ['' if item is None else str(item) for item in value]
+
+        return ['' if item is None else item.__format__(format) for item in value]
 
 
 class PasswordInput(NullableInputBase):
@@ -237,25 +738,166 @@ class PasswordInput(NullableInputBase):
         super().__init__('password', '', **kwargs)
         self.max_length = max_length
 
-    def _validate_item_update(self, errors, raw_data):
-        super()._validate_item_update(errors, raw_data)
+    def _validate_item_update(self, form_raw_data):
+        result = None
+        errors = []
+        raw_data = form_raw_data.get(self.name)
 
-        if not raw_data is None:
+        if (raw_data is None) and (not self.is_nullable):
+            errors.append('No value specified.')
+        else:
             if len(raw_data) > self.max_length:
                 errors.append(f'Length must be less than {self.max_length}.')
 
-            return str(raw_data)
+            result = raw_data
+
+        return result, {'value': errors}
+
+    def _validate_list_filter(self, form_raw_data):
+        return None, {'value': []}
+
+    def _item_select_value(self, form_result):
+        default = self.default_item_select() if callable(self.default_item_select) else self.default_item_select
+
+        return form_result.get(self.name, default)
+
+    def _item_select_value_format(self, form_result, format=None):
+        value = self._item_select_value(form_result)
+
+        if value is None:
+            return ''
+
+        if format is None:
+            return str(value)
+
+        return value.__format__(format)
+
+    def _item_update_value(self, form_result):
+        default = self.default_item_select() if callable(self.default_item_select) else self.default_item_select
+
+        return form_result.get(self.name, default)
+
+    def _item_update_value_format(self, form_result, format=None):
+        value = self._item_update_value(form_result)
+
+        if value is None:
+            return ''
+
+        if format is None:
+            return str(value)
+
+        return value.__format__(format)
+
+    def _list_filter_value(self, form_result):
+        default = self.default_list_filter() if callable(self.default_list_filter) else self.default_list_filter
+
+        return form_result.get(self.name, default)
+
+    def _list_filter_value_format(self, form, format=None):
+        value = self._list_filter_value(form)
+
+        if value is None:
+            return ''
+
+        if format is None:
+            return str(value)
+
+        return value.__format__(format)
 
 
 class RadioInput(NullableInputBase):
     def __init__(self, **kwargs):
         super().__init__('radio', '', **kwargs)
 
-    def _validate_item_update(self, errors, raw_data):
-        super()._validate_item_update(errors, raw_data)
+    def _parse_boolean(self, value):
+        if value is True or value is False:
+            return value
 
-        if not raw_data is None:
-            return str(raw_data)
+        value = str(value).lower()
+
+        if value in ('t', 'true',  'on',  'yes', '1', 'checked'):
+            return True
+
+        if value in ('f', 'false', 'off', 'no',  '0'):
+            return False
+
+        return None
+
+    def _validate_item_update(self, form_raw_data):
+        result = None
+        errors = []
+        raw_data = form_raw_data.get(self.name)
+
+        if (raw_data is None) and (not self.is_nullable):
+            errors.append('No value specified.')
+        else:
+            if raw_data in self.choices:
+                result = raw_data
+            else:
+                errors.append(f'Invalid value ({raw_data}).')
+
+        return result, {'value': errors}
+
+    def _validate_list_filter(self, form_raw_data):
+        result = {}
+        errors = {}
+
+        for item_name in self.choices:
+            if item_name:
+                item_raw_data = form_raw_data.get(self.name + ':' + item_name)
+
+                if item_raw_data is None:
+                    result[item_name] = False
+                else:
+                    item_result = self._parse_boolean(item_raw_data)
+
+                    if item_result is None:
+                        errors[item_name] = [f'Invalid value ({item_raw_data}).']
+                        result[item_name] = False
+                    else:
+                        result[item_name] = item_result
+
+        return result, errors
+
+    def _item_select_value(self, form_result):
+        default = self.default_item_select() if callable(self.default_item_select) else self.default_item_select
+
+        return form_result.get(self.name, default)
+
+    def _item_select_value_format(self, form_result, format=None):
+        value = self._item_select_value(form_result)
+
+        if value is None:
+            return ''
+
+        if format is None:
+            return str(value)
+
+        return value.__format__(format)
+
+    def _item_update_value(self, form_result):
+        default = self.default_item_select() if callable(self.default_item_select) else self.default_item_select
+
+        return form_result.get(self.name, default)
+
+    def _item_update_value_format(self, form_result, format=None):
+        value = self._item_update_value(form_result)
+
+        if value is None:
+            return ''
+
+        if format is None:
+            return str(value)
+
+        return value.__format__(format)
+
+    def _list_filter_value(self, form_result):
+        default = self.default_list_filter() if callable(self.default_list_filter) else self.default_list_filter
+
+        return form_result.get(self.name, default)
+
+    def _list_filter_value_format(self, form, format=None):
+        return self._list_filter_value(form)
 
 
 class SearchInput(NullableInputBase):
@@ -263,14 +905,78 @@ class SearchInput(NullableInputBase):
         super().__init__('search', '', **kwargs)
         self.max_length = max_length
 
-    def _validate_item_update(self, errors, raw_data):
-        super()._validate_item_update(errors, raw_data)
+    def _validate_item_update(self, form_raw_data):
+        result = None
+        errors = []
+        raw_data = form_raw_data.get(self.name)
 
-        if not raw_data is None:
+        if (raw_data is None) and (not self.is_nullable):
+            errors.append('No value specified.')
+        else:
             if len(raw_data) > self.max_length:
                 errors.append(f'Length must be less than {self.max_length}.')
 
-            return str(raw_data)
+            result = raw_data
+
+        return result, {'value': errors}
+
+    def _validate_list_filter(self, form_raw_data):
+        result = None
+        errors = []
+        raw_data = form_raw_data.get(self.name)
+
+        if (not raw_data is None) or self.is_nullable:
+            result = raw_data
+
+        return result, {'value': errors}
+
+    def _item_select_value(self, form_result):
+        default = self.default_item_select() if callable(self.default_item_select) else self.default_item_select
+
+        return form_result.get(self.name, default)
+
+    def _item_select_value_format(self, form_result, format=None):
+        value = self._item_select_value(form_result)
+
+        if value is None:
+            return ''
+
+        if format is None:
+            return str(value)
+
+        return value.__format__(format)
+
+    def _item_update_value(self, form_result):
+        default = self.default_item_select() if callable(self.default_item_select) else self.default_item_select
+
+        return form_result.get(self.name, default)
+
+    def _item_update_value_format(self, form_result, format=None):
+        value = self._item_update_value(form_result)
+
+        if value is None:
+            return ''
+
+        if format is None:
+            return str(value)
+
+        return value.__format__(format)
+
+    def _list_filter_value(self, form_result):
+        default = self.default_list_filter() if callable(self.default_list_filter) else self.default_list_filter
+
+        return form_result.get(self.name, default)
+
+    def _list_filter_value_format(self, form, format=None):
+        value = self._list_filter_value(form)
+
+        if value is None:
+            return ''
+
+        if format is None:
+            return str(value)
+
+        return value.__format__(format)
 
 
 class SelectInput(NullableInputBase):
@@ -278,11 +984,95 @@ class SelectInput(NullableInputBase):
         super().__init__('select', '', **kwargs)
         self.size = size
 
-    def _validate_item_update(self, errors, raw_data):
-        super()._validate_item_update(errors, raw_data)
+    def _parse_boolean(self, value):
+        if value is True or value is False:
+            return value
 
-        if not raw_data is None:
-            return str(raw_data)
+        value = str(value).lower()
+
+        if value in ('t', 'true',  'on',  'yes', '1', 'checked'):
+            return True
+
+        if value in ('f', 'false', 'off', 'no',  '0'):
+            return False
+
+        return None
+
+    def _validate_item_update(self, form_raw_data):
+        result = None
+        errors = []
+        raw_data = form_raw_data.get(self.name)
+
+        if (raw_data is None) and (not self.is_nullable):
+            errors.append('No value specified.')
+        else:
+            if raw_data in self.choices:
+                result = raw_data
+            else:
+                errors.append(f'Invalid value ({raw_data}).')
+
+        return result, {'value': errors}
+
+    def _validate_list_filter(self, form_raw_data):
+        result = {}
+        errors = {}
+
+        for item_name in self.choices:
+            if item_name:
+                item_raw_data = form_raw_data.get(self.name + ':' + item_name)
+
+                if item_raw_data is None:
+                    result[item_name] = False
+                else:
+                    item_result = self._parse_boolean(item_raw_data)
+
+                    if item_result is None:
+                        errors[item_name] = [f'Invalid value ({item_raw_data}).']
+                        result[item_name] = False
+                    else:
+                        result[item_name] = item_result
+
+        return result, errors
+
+    def _item_select_value(self, form_result):
+        default = self.default_item_select() if callable(self.default_item_select) else self.default_item_select
+
+        return form_result.get(self.name, default)
+
+    def _item_select_value_format(self, form_result, format=None):
+        value = self._item_select_value(form_result)
+
+        if value is None:
+            return ''
+
+        if format is None:
+            return str(value)
+
+        return value.__format__(format)
+
+    def _item_update_value(self, form_result):
+        default = self.default_item_select() if callable(self.default_item_select) else self.default_item_select
+
+        return form_result.get(self.name, default)
+
+    def _item_update_value_format(self, form_result, format=None):
+        value = self._item_update_value(form_result)
+
+        if value is None:
+            return ''
+
+        if format is None:
+            return str(value)
+
+        return value.__format__(format)
+
+    def _list_filter_value(self, form_result):
+        default = self.default_list_filter() if callable(self.default_list_filter) else self.default_list_filter
+
+        return form_result.get(self.name, default)
+
+    def _list_filter_value_format(self, form, format=None):
+        return self._list_filter_value(form)
 
 
 class TextInput(NullableInputBase):
@@ -292,14 +1082,78 @@ class TextInput(NullableInputBase):
         self.columns = columns
         self.max_length = max_length
 
-    def _validate_item_update(self, errors, raw_data):
-        super()._validate_item_update(errors, raw_data)
+    def _validate_item_update(self, form_raw_data):
+        result = None
+        errors = []
+        raw_data = form_raw_data.get(self.name)
 
-        if not raw_data is None:
+        if (raw_data is None) and (not self.is_nullable):
+            errors.append('No value specified.')
+        else:
             if len(raw_data) > self.max_length:
                 errors.append(f'Length must be less than {self.max_length}.')
 
-            return str(raw_data)
+            result = raw_data
+
+        return result, {'value': errors}
+
+    def _validate_list_filter(self, form_raw_data):
+        result = None
+        errors = []
+        raw_data = form_raw_data.get(self.name)
+
+        if (not raw_data is None) or self.is_nullable:
+            result = raw_data
+
+        return result, {'value': errors}
+
+    def _item_select_value(self, form_result):
+        default = self.default_item_select() if callable(self.default_item_select) else self.default_item_select
+
+        return form_result.get(self.name, default)
+
+    def _item_select_value_format(self, form_result, format=None):
+        value = self._item_select_value(form_result)
+
+        if value is None:
+            return ''
+
+        if format is None:
+            return str(value)
+
+        return value.__format__(format)
+
+    def _item_update_value(self, form_result):
+        default = self.default_item_select() if callable(self.default_item_select) else self.default_item_select
+
+        return form_result.get(self.name, default)
+
+    def _item_update_value_format(self, form_result, format=None):
+        value = self._item_update_value(form_result)
+
+        if value is None:
+            return ''
+
+        if format is None:
+            return str(value)
+
+        return value.__format__(format)
+
+    def _list_filter_value(self, form_result):
+        default = self.default_list_filter() if callable(self.default_list_filter) else self.default_list_filter
+
+        return form_result.get(self.name, default)
+
+    def _list_filter_value_format(self, form, format=None):
+        value = self._list_filter_value(form)
+
+        if value is None:
+            return ''
+
+        if format is None:
+            return str(value)
+
+        return value.__format__(format)
 
 
 class TimeInput(NullableInputBase):
@@ -309,43 +1163,189 @@ class TimeInput(NullableInputBase):
         self.max_value = max_value
         self.formats = formats
 
-    def _validate_item_update(self, errors, raw_data):
-        super()._validate_item_update(errors, raw_data)
-
-        if not raw_data is None:
-            value = None
-
-            for format in self.formats:
-                try:
-                    value = datetime.strptime(raw_data, format).time()
-                    break
-                except ValueError:
-                    pass
-
-            if value is None:
-                errors.append(f'Invalid value.')
-            else:
-                if value < self.min_value:
-                    errors.append(f'Value ({value}) must be after {self.min_value}.')
-
-                if value > self.max_value:
-                    errors.append(f'Value ({value}) must be before {self.max_value}.')
-
+    def _parse_time(self, value):
+        if value is None:
             return value
+
+        if type(value) is datetime:
+            return value
+
+        for format in self.formats:
+            try:
+                return datetime.strptime(value, format).time()
+            except ValueError:
+                pass
+
+        return None
+
+    def _validate_item_update(self, form_raw_data):
+        result = None
+        errors = []
+        raw_data = form_raw_data.get(self.name)
+
+        if (raw_data is None) and (not self.is_nullable):
+            errors.append('No value specified.')
+        else:
+            result = self._parse_time(raw_data)
+
+            if result is None:
+                errors.append(f'Invalid value ({raw_data}).')
+            else:
+                if result < self.min_value:
+                    errors.append(f'Value ({raw_data}) must be after {self.min_value}.')
+
+                if result > self.max_value:
+                    errors.append(f'Value ({raw_data}) must be before {self.max_value}.')
+
+        return result, {'value': errors}
+
+    def _validate_list_filter(self, form_raw_data):
+        result_lower = None
+        result_upper = None
+        errors_lower = []
+        errors_upper = []
+        raw_data_lower = form_raw_data.get(self.name + ':lower')
+        raw_data_upper = form_raw_data.get(self.name + ':upper')
+
+        if raw_data_lower:
+            result_lower = self._parse_time(raw_data_lower)
+
+            if result_lower is None:
+                errors_lower.append(f'Invalid value ({raw_data_lower}).')
+
+        if raw_data_upper:
+            result_upper = self._parse_time(raw_data_upper)
+
+            if result_upper is None:
+                errors_upper.append(f'Invalid value ({raw_data_upper}).')
+
+        return [result_lower, result_upper], {'lower': errors_lower, 'upper': errors_upper}
+
+    def _item_select_value(self, form_result):
+        default = self.default_item_select() if callable(self.default_item_select) else self.default_item_select
+
+        return form_result.get(self.name, default)
+
+    def _item_select_value_format(self, form_result, format=None):
+        value = self._item_select_value(form_result)
+
+        if value is None:
+            return ''
+
+        if format is None:
+            return str(value)
+
+        return value.__format__(format)
+
+    def _item_update_value(self, form_result):
+        default = self.default_item_select() if callable(self.default_item_select) else self.default_item_select
+
+        return form_result.get(self.name, default)
+
+    def _item_update_value_format(self, form_result, format=None):
+        value = self._item_update_value(form_result)
+
+        if value is None:
+            return ''
+
+        if format is None:
+            return str(value)
+
+        return value.__format__(format)
+
+    def _list_filter_value(self, form_result):
+        default = self.default_list_filter() if callable(self.default_list_filter) else self.default_list_filter
+
+        return form_result.get(self.name, default)
+
+    def _list_filter_value_format(self, form, format=None):
+        value = self._list_filter_value(form)
+
+        if value is None:
+            return ['', '']
+
+        if format is None:
+            return ['' if item is None else str(item) for item in value]
+
+        return ['' if item is None else item.__format__(format) for item in value]
 
 
 class UrlInput(NullableInputBase):
     def __init__(self, **kwargs):
         super().__init__('url', '', **kwargs)
 
-    def _validate_item_update(self, errors, raw_data):
-        super()._validate_item_update(errors, raw_data)
+    def _validate_item_update(self, form_raw_data):
+        result = None
+        errors = []
+        raw_data = form_raw_data.get(self.name)
 
-        if not raw_data is None:
+        if (raw_data is None) and (not self.is_nullable):
+            errors.append('No value specified.')
+        else:
             if len(raw_data) > 8192:
                 errors.append(f'Length must be less than 8192.')
 
-            return str(raw_data)
+            result = raw_data
+
+        return result, {'value': errors}
+
+    def _validate_list_filter(self, form_raw_data):
+        result = None
+        errors = []
+        raw_data = form_raw_data.get(self.name)
+
+        if (not raw_data is None) or self.is_nullable:
+            result = raw_data
+
+        return result, {'value': errors}
+
+    def _item_select_value(self, form_result):
+        default = self.default_item_select() if callable(self.default_item_select) else self.default_item_select
+
+        return form_result.get(self.name, default)
+
+    def _item_select_value_format(self, form_result, format=None):
+        value = self._item_select_value(form_result)
+
+        if value is None:
+            return ''
+
+        if format is None:
+            return str(value)
+
+        return value.__format__(format)
+
+    def _item_update_value(self, form_result):
+        default = self.default_item_select() if callable(self.default_item_select) else self.default_item_select
+
+        return form_result.get(self.name, default)
+
+    def _item_update_value_format(self, form_result, format=None):
+        value = self._item_update_value(form_result)
+
+        if value is None:
+            return ''
+
+        if format is None:
+            return str(value)
+
+        return value.__format__(format)
+
+    def _list_filter_value(self, form_result):
+        default = self.default_list_filter() if callable(self.default_list_filter) else self.default_list_filter
+
+        return form_result.get(self.name, default)
+
+    def _list_filter_value_format(self, form, format=None):
+        value = self._list_filter_value(form)
+
+        if value is None:
+            return ''
+
+        if format is None:
+            return str(value)
+
+        return value.__format__(format)
 
 
 class InputProxy(object):
@@ -357,34 +1357,52 @@ class InputProxy(object):
         self._input = input
 
     def _validate_item_update(self):
-        errors = []
-        self._form._data[self._input.name] = self._input._validate_item_update(errors, self._form._raw_data.get(self._input.name))
+        result, errors = self._input._validate_item_update(self._form._raw_data)
+
+        self._form._result[self._input.name] = result
         self._form._errors[self._input.name] = errors
 
         return len(errors) == 0
 
-    def is_valid(self):
-        return self._form._is_validated and len(self.errors()) == 0
+    def _validate_list_filter(self):
+        result, errors = self._input._validate_list_filter(self._form._raw_data)
 
-    def is_invalid(self):
-        return self._form._is_validated and len(self.errors()) > 0
+        self._form._result[self._input.name] = result
+        self._form._errors[self._input.name] = errors
+
+        return len(errors) == 0
+
+    def is_valid(self, category):
+        return self._form._is_validated and len(self.errors(category)) == 0
+
+    def is_invalid(self, category):
+        return self._form._is_validated and len(self.errors(category)) > 0
+
+    def item_select_value(self):
+        return self._input._item_select_value(self._form._result)
+
+    def item_select_value_format(self, format=None):
+        return self._input._item_select_value_format(self._form._result)
 
     def item_update_value(self):
-        return self._form._data.get(self._input.name, self._input.default)
+        return self._input._item_update_value(self._form._result)
 
     def item_update_value_format(self, format=None):
-        value = self.item_update_value()
+        return self._input._item_update_value_format(self._form._result)
 
-        if value is None:
-            return ''
+    def list_filter_value(self):
+        return self._input._list_filter_value(self._form._result)
 
-        if format is None:
-            return str(value)
+    def list_filter_value_format(self, format=None):
+        return self._input._list_filter_value_format(self._form._result)
 
-        return value.__format__(format)
+    def errors(self, category):
+        input_errors = self._form._errors.get(self._input.name, None)
 
-    def errors(self):
-        return self._form._errors.get(self._input.name, [])
+        if input_errors is None:
+            return []
+
+        return input_errors.get(category, [])
 
 
 class BinderMeta(object):
@@ -424,9 +1442,9 @@ class BinderBase(object):
         self.jinja2_macro_name = 'form'
         self._prefix = prefix
         self._raw_data = {}
-        self._data = {}
         self._is_validated = False
         self._is_valid = False
+        self._result = {}
         self._errors = {}
         self._inputs = []
         self._update(kwargs)
@@ -453,6 +1471,18 @@ class BinderBase(object):
         for inp in self._inputs:
             # CPython optimizes computation, so operand order is important
             self._is_valid = inp._validate_item_update() and self._is_valid
+
+        return self._is_valid
+
+    def _validate_list_filter(self):
+        self._is_validated = True
+        self._errors = {}
+        self._data = {}
+        self._is_valid = True
+
+        for inp in self._inputs:
+            # CPython optimizes computation, so operand order is important
+            self._is_valid = inp._validate_list_filter() and self._is_valid
 
         return self._is_valid
 
