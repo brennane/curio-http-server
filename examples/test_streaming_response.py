@@ -1,7 +1,7 @@
 from curio import run
 from curio import sleep
-from curio_http_server.router import Router
-from curio_http_server.server11 import Server11
+from curio_http_server.core.router import Router
+from curio_http_server.core.server11 import Server11
 
 
 async def default_handler(request, response):

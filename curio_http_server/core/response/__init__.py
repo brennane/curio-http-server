@@ -1,4 +1,4 @@
-from .headers import ResponseHeaders
+from ..headers import ResponseHeaders
 from json import dumps
 
 

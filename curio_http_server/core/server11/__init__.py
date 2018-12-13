@@ -1,5 +1,5 @@
-from .request import Request
-from .response import Response
+from ..request import Request
+from ..response import Response
 from curio import TaskTimeout
 from curio import tcp_server
 from curio import timeout_after

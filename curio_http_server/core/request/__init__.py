@@ -1,5 +1,5 @@
-from .headers import RequestHeaders
-from .headers import FormPartHeaders
+from ..headers import FormPartHeaders
+from ..headers import RequestHeaders
 from email.message import Message
 from email.parser import BytesFeedParser
 from email.policy import HTTP

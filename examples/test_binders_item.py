@@ -1,26 +1,26 @@
 from curio import run
-from curio_http_server.binders import BinderBase
-from curio_http_server.binders import CheckboxInput
-from curio_http_server.binders import DateInput
-from curio_http_server.binders import DateTimeInput
-from curio_http_server.binders import EMailInput
-from curio_http_server.binders import FileInput
-from curio_http_server.binders import HiddenInput
-from curio_http_server.binders import NumberInput
-from curio_http_server.binders import PasswordInput
-from curio_http_server.binders import RadioInput
-from curio_http_server.binders import SearchInput
-from curio_http_server.binders import SelectInput
-from curio_http_server.binders import TextInput
-from curio_http_server.binders import TimeInput
-from curio_http_server.binders import UrlInput
-from curio_http_server.handlers.static import StaticHandler
-from curio_http_server.handlers.template import Jinja2HandlerBase
-from curio_http_server.handlers.template import get_builtin_jinja2_loader
-from curio_http_server.handlers.template import jinja2_template
-from curio_http_server.handlers.template import jinja2_template
-from curio_http_server.router import Router
-from curio_http_server.server11 import Server11
+from curio_http_server.core.binders import BinderBase
+from curio_http_server.core.binders import CheckboxInput
+from curio_http_server.core.binders import DateInput
+from curio_http_server.core.binders import DateTimeInput
+from curio_http_server.core.binders import EMailInput
+from curio_http_server.core.binders import FileInput
+from curio_http_server.core.binders import HiddenInput
+from curio_http_server.core.binders import NumberInput
+from curio_http_server.core.binders import PasswordInput
+from curio_http_server.core.binders import RadioInput
+from curio_http_server.core.binders import SearchInput
+from curio_http_server.core.binders import SelectInput
+from curio_http_server.core.binders import TextInput
+from curio_http_server.core.binders import TimeInput
+from curio_http_server.core.binders import UrlInput
+from curio_http_server.core.handlers.static import StaticHandler
+from curio_http_server.core.handlers.template import Jinja2HandlerBase
+from curio_http_server.core.handlers.template import get_builtin_jinja2_loader
+from curio_http_server.core.handlers.template import jinja2_template
+from curio_http_server.core.handlers.template import jinja2_template
+from curio_http_server.core.router import Router
+from curio_http_server.core.server11 import Server11
 from datetime import date
 from datetime import datetime
 from datetime import timedelta
@@ -108,14 +108,14 @@ class DefaultHandler(Jinja2HandlerBase):
             # Disable template caching for debugging purposes
             cache_size=0))
 
-    @jinja2_template('test_binders.html')
+    @jinja2_template('test_binders_item.html')
     async def get(self, request, response):
         binder1 = TestBinder(prefix='post-1-')
         binder2 = TestBinder(prefix='post-2-')
 
         return { 'binder1': binder1, 'binder2': binder2 }
 
-    @jinja2_template('test_binders.html')
+    @jinja2_template('test_binders_item.html')
     async def post(self, request, response):
         data = await request.read_form()
 
