@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 from curio import run
 from curio import sleep
 from curio_http_server.core.router import Router

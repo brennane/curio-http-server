@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 from curio import run
 from curio_http_server.core.router import Router
 from curio_http_server.core.server11 import Server11

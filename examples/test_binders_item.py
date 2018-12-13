@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 from curio import run
 from curio_http_server.core.binders import BinderBase
 from curio_http_server.core.binders import CheckboxInput

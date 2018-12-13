@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 from curio import run
 from curio_http_server.core.handlers.template import Jinja2HandlerBase
 from curio_http_server.core.handlers.template import jinja2_template
