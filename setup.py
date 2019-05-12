@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-from setuptools import setup
+from setuptools import setup, find_packages
 from os import chdir
 from os import pardir
 from os.path import abspath
@@ -15,7 +15,7 @@ setup(
     author='Roman Akopov',
     author_email='adontz@gmail.com',
     url='https://github.com/triflesoft/curio-http-server',
-    packages=['curio_http_server'],
+    packages=find_packages(),
     python_requires='>=3.7',
     install_requires=[
         'curio>=0.9',
